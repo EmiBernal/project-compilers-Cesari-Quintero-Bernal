@@ -36,7 +36,60 @@ void yyerror(const char *s);
 
 %%
 
-program:
+program: var_decls method_decls;
+var_decls: /* */ | var_decl var_decls; 
+method_decls: /* */ | method_decl method_decls;
+type: INT | BOOLEAN | FLOAT;
+var_decl: type id_list SEMI;
+id_list: ID | id_list COMMA ID;
+
+method_decl
+        : type ID LPAREN params RPAREN block
+        | VOID ID LPAREN params RPAREN block;
+
+params: /* */ | param_list;
+param_list: type ID | param_list COMMA type ID;
+
+block: LBRACE var_decls statements RBRACE;
+
+statements: /* */ | statement statements;
+
+statement
+        : ID ASSIGN expr SEMI 
+        | method_call SEMI
+        | IF LPAREN expr RPAREN block
+        | IF LPAREN expr RPAREN block ELSE block
+        | WHILE LPAREN expr RPAREN block
+        | RETURN expr SEMI
+        | RETURN SEMI
+        | SEMI
+        | block
+        ;
+
+method_call: ID LPAREN args RPAREN;
+args: /* */ | arg_list;
+arg_list: expr | arg_list COMMA expr;
+expr
+    : ID
+    | method_call
+    | NUM
+    | FNUM
+    | TRUE
+    | FALSE
+    | expr PLUS expr
+    | expr MINUS expr
+    | expr TIMES expr
+    | expr SLASH expr
+    | expr MOD expr
+    | expr LT expr
+    | expr GT expr
+    | expr EQ expr
+    | expr AND expr
+    | expr OR expr
+    | NOT expr
+    | LPAREN expr RPAREN
+    | MINUS expr %prec UMINUS
+    ;
 
 %%
 void yyerror(const char *s){
