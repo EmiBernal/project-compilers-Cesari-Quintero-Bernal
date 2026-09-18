@@ -36,9 +36,7 @@ void yyerror(const char *s);
 
 %%
 
-program: var_decls method_decls;
-var_decls: /* */ | var_decl var_decls; 
-method_decls: /* */ | method_decl method_decls;
+program: %empty | program var_decl | program method_decl;
 type: INT | BOOLEAN | FLOAT;
 var_decl: type id_list SEMI;
 id_list: ID | id_list COMMA ID;
@@ -47,12 +45,12 @@ method_decl
         : type ID LPAREN params RPAREN block
         | VOID ID LPAREN params RPAREN block;
 
-params: /* */ | param_list;
+params: %empty | param_list;
 param_list: type ID | param_list COMMA type ID;
 
-block: LBRACE var_decls statements RBRACE;
-
-statements: /* */ | statement statements;
+block: LBRACE block_var_decls statements RBRACE;
+block_var_decls: %empty | block_var_decls var_decl;
+statements: %empty | statement statements;
 
 statement
         : ID ASSIGN expr SEMI 
@@ -67,7 +65,7 @@ statement
         ;
 
 method_call: ID LPAREN args RPAREN;
-args: /* */ | arg_list;
+args: %empty | arg_list;
 arg_list: expr | arg_list COMMA expr;
 expr
     : ID

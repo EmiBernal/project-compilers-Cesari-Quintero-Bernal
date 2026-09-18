@@ -34,10 +34,9 @@ id              {alpha}{alpha_num}*
 <COMMENTS>\n { /* Ignorar saltos de linea */}
 <COMMENTS><<EOF>> {
     printf("Error en linea %d: comentario sin cerrar\n", yylineno);
-    return -1; // o lo que uses para error léxico
+    return -1;
 }
 
-/* Palabras reservadas */
 "boolean"   {return BOOLEAN;}
 "else"      {return ELSE;}
 "false"     {return FALSE;}
