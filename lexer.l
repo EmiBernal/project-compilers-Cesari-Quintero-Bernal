@@ -9,14 +9,27 @@
 
 delim [ \t\n]
 ws  {delim}+
-letra [a-zA-Z]
-digito [0-9]
-id {letra}({letra}|{digito})*
-numero {digito}+
+alpha           [a-zA-Z]
+digit           [0-9]+
+arith_op        "+"|"-"|"*"|"/"|"%"
+relOp           "<"|">"|"=="
+cond_op         "&&"|"||"
+int_literal     {digit}{digit}*
+bool_literal    "true"|"false"
+float_literal   {digit}{digit}*"."{digit}{digit}*
+bin_op          {arith_op}|{relOp}|{cond_op}
+literal         {int_literal}|{bool_literal}|{float_literal}
+id              {alpha}{alpha_num}*
+alpha_num       {alpha}|{digit}|_
+
+
+
 
 %x COMMENTS
 
 %%
+[ \t]+      { /* nada */ }
+\n          { /* nada */ }
 
 "/*" {BEGIN COMMENTS;}
 <COMMENTS>"*/" {BEGIN INITIAL;}
@@ -29,8 +42,33 @@ numero {digito}+
 
 {ws} {/* no hay accion y no hay retorno*/}
 
-"true" {return TRUE;}
-"false" {return FALSE;}
+/* Palabras reservadas */
+"boolean"   {return BOOLEAN;}
+"else"      {return ELSE;}
+"false"     {return FALSE;}
+"if"        {return IF;}
+"int"       {return INT;}
+"return"    {return RETURN;}
+"true"      {return TRUE;}
+"void"      {return VOID;}
+"while"     {return WHILE;}
+"float"     {return FLOAT;}
+
+
+
+
+
+{digit}+ {
+    //Convierto el valor a numero
+    long val = strtol(yytext, NULL, 10);
+    if(val < -2147483648 || val > 2147483647) {
+        printf("Error: numero fuera de rango\n");
+        return -1;
+    }
+    yylval.num = (int)val; //casteo a int
+    return NUM;
+}
+
 
 {id} {
     /* Guardamos una copia del lexema real en yylval para que Bison sepa el nombre*/
@@ -43,15 +81,6 @@ numero {digito}+
     yylval.num = atoi(yytext);
     return NUM;
     }
-
-"+" {return PLUS;}
-"*" {return TIMES;}
-"=" {return ASSIGN;}
-";" {return SEMI;}
-"(" {return LPAREN;}
-")" {return RPAREN;}
-"{" {return LBRACE;}
-"}" {return RBRACE;}
 
 %%
 int yywrap(){
