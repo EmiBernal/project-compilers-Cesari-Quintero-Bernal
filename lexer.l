@@ -14,14 +14,21 @@ digito [0-9]
 id {letra}({letra}|{digito})*
 numero {digito}+
 
+%x COMMENTS
+
 %%
 
+"/*" {BEGIN COMMENTS;}
+<COMMENTS>"*/" {BEGIN INITIAL;}
+<COMMENTS>. { /* Ignorar caracteres*/}
+<COMMENTS>\n { /* Ignorar saltos de linea */}
+<COMMENTS><<EOF>> {
+    printf("Error: comentario sin cerrar\n");
+    return -1; // o lo que uses para error léxico
+}
+
 {ws} {/* no hay accion y no hay retorno*/}
-"int" {return INT;}
-"bool" {return BOOL;}
-"return" {return RETURN;}
-"main" {return MAIN;}
-"void" {return VOID;}
+
 "true" {return TRUE;}
 "false" {return FALSE;}
 
