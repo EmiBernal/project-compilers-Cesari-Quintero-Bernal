@@ -6,7 +6,6 @@
 #include "parser.tab.h"
 %}
 
-/* definiciones regulares*/
 alpha           [a-zA-Z]
 digit           [0-9]
 alpha_num       {alpha}|{digit}|_
@@ -24,14 +23,14 @@ id              {alpha}{alpha_num}*
 %x COMMENTS
 
 %%
-[ \t]+      { /* nada */ }
-\n          { /* nada */ }
-"//".*      { /* nada */ }
+[ \t]+      { }
+\n          { }
+"//".*      { }
 
 "/*" {BEGIN COMMENTS;}
 <COMMENTS>"*/" {BEGIN INITIAL;}
-<COMMENTS>. { /* Ignorar caracteres*/}
-<COMMENTS>\n { /* Ignorar saltos de linea */}
+<COMMENTS>. {}
+<COMMENTS>\n {}
 <COMMENTS><<EOF>> {
     printf("Error en linea %d: comentario sin cerrar\n", yylineno);
     return -1;
@@ -85,7 +84,7 @@ id              {alpha}{alpha_num}*
 
 
 {id} {
-    /* Guardamos una copia del lexema real en yylval para que Bison sepa el nombre*/
+    
     yylval.string = strdup(yytext);
     return ID;
 }
