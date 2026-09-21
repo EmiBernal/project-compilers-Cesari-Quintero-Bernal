@@ -13,8 +13,8 @@ Integrantes
 - C
 
 ## Como correr un programa?
-flex lexer.l
-bison -d parser.y
-./ctds_parser <nombreDelPrograma>.ctds (por ahora es la única opción)
+- flex lexer.l
+- bison -d parser.y
+- ./ctds_parser <nombreDelPrograma>.ctds (por ahora es la única opción)
 
 
