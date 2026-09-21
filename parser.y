@@ -10,9 +10,9 @@ void yyerror(const char *s);
 %}
 
 %union {
-    int num;       /* Para almacenar el valor de los números */
-    float fnum;		/* Para almacenar el valor de los números flotantes*/
-    char* string;   /* Para almacenar los nombres de los identificadores */
+    int num;       /*números Enteros*/
+    float fnum;		/* Números flotantes*/
+    char* string;   /* Identificadores */
 
 }
 
