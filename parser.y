@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 extern FILE *yyin;
+extern int yylineno;
 
 int yylex(void);
 void yyerror(const char *s);
@@ -16,6 +17,7 @@ void yyerror(const char *s);
 
 }
 
+%define parse.error verbose
 %token INT BOOLEAN RETURN VOID TRUE FALSE IF WHILE FLOAT ELSE
 %token <string> ID
 %token <num> NUM
@@ -91,7 +93,7 @@ expr
 
 %%
 void yyerror(const char *s){
-    fprintf(stderr, "Error de sintaxis: %s\n", s);
+    fprintf(stderr, "Error de sintaxis en la linea %d: %s\n", yylineno, s);
 }
 
 int main(int argc, char **argv){
