@@ -38,7 +38,7 @@ void yyerror(const char *s);
 
 %%
 
-program: %empty | program var_decl | program method_decl;
+program: program var_decl | program method_decl;
 type: INT | BOOLEAN | FLOAT;
 var_decl: type id_list SEMI;
 id_list: ID | id_list COMMA ID;
