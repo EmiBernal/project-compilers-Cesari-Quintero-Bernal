@@ -5,9 +5,14 @@ int inc(int x) {
 void main() {
     int y;
     y = 4;
-    if (y == 1) {
-        return 1;
-    } else {
-        return inc(y);
-    }
+
+    while (y > 1) {
+        y = y-1;
+        }
+
+    /* hola muy buenos dias
+    */
+
+    return inc(y);
+    
 }
