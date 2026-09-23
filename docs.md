@@ -10,4 +10,4 @@ int main(){
     return;
 }
 
-Para resolverlo, se unificó la gramática en una única lista recursiva que admite var_decl y method_decl en cualquier orden (program: %empty | program var_decl | program method_decl) eliminando la ambigüedad.
+Para resolverlo, se unificó la gramática en una única lista recursiva que admite var_decl y method_decl en cualquier orden (program: program var_decl | program method_decl) eliminando la ambigüedad.
