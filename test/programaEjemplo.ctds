@@ -8,9 +8,10 @@ void main() {
 
     while (y > 1) {
         y = y-1;
-        }
+    }
 
-    /* hola muy buenos dias
+    /* 
+        hola muy buenos dias
     */
 
     return inc(y);
