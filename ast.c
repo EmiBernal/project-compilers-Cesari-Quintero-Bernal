@@ -248,17 +248,126 @@ ASTNode* createProgNode(ASTNode* globals, ASTNode* methods) {
 }
 
 
+//Devuelve el simbolo de un operador para imprimirlo
+static const char* opToString(SymbolType op) {
+    switch(op){
+        case OP_ADD:    return "+";
+        case OP_SUB:    return "-";
+        case OP_MUL:    return "*";
+        case OP_DIV:    return "/";
+        case OP_MOD:    return "%";
+        case OP_LT:     return "<";
+        case OP_GT:     return ">";
+        case OP_EQ:     return "==";
+        case OP_AND:    return "&&";
+        case OP_OR:     return "||";
+        case OP_UMINUS: return "-";
+        case OP_NEG:    return "!";
+        default:        return "?";
+    }
+}
+
+//Devuelve el nombre de un tipo de dato para imprimirlo
+static const char* typeToString(DataType type) {
+    switch(type){
+        case TYPE_INT:   return "int";
+        case TYPE_FLOAT: return "float";
+        case TYPE_BOOL:  return "boolean";
+        case TYPE_VOID:  return "void";
+        default:         return "?";
+    }
+}
+
 //Impresion del arbol (level = profundidad, para indentar)
-void printAST(ASTNode* node, int level) {
+void printAST(ASTNode* node, int level){
+    if(node == NULL){
+        return;
+    }
 
-    if(node == NULL) return;
-
-    //Por cada nivel imprimo un espacio para indentar
-    for(int i = 0; i < level; i++) {
+    //Por cada nivel imprimo dos espacios para indentar
+    for(int i = 0; i < level; i++){
         printf("  ");
     }
 
-    printf("");
+    //Los nodos sin simbolo (SEQ, IF, WHILE, etc.) tienen info == NULL,
+    //por eso solo se accede a info en los casos que siempre lo tienen
+    switch(node->type){
+        case NODE_NUM:
+            printf("NUM: %d\n", node->info->value.ival);
+            break;
+
+        case NODE_FLOAT:
+            printf("FLOAT: %f\n", node->info->value.fval);
+            break;
+
+        case NODE_BOOL:
+            printf("BOOL: %s\n", node->info->value.bval ? "true" : "false");
+            break;
+
+        case NODE_ID:
+            printf("ID: %s\n", node->info->name);
+            break;
+
+        case NODE_OP:
+            printf("OP: %s\n", opToString(node->info->kind));
+            break;
+
+        case NODE_UNOP:
+            printf("UNOP: %s\n", opToString(node->info->kind));
+            break;
+
+        case NODE_CALL:
+            printf("CALL: %s\n", node->info->name);
+            break;
+
+        case NODE_DECL:
+            printf("DECL: %s %s\n", typeToString(node->info->type), node->info->name);
+            break;
+
+        case NODE_PARAM:
+            printf("PARAM: %s %s\n", typeToString(node->info->type), node->info->name);
+            break;
+
+        case NODE_METHOD:
+            printf("METHOD: %s %s\n", typeToString(node->info->type), node->info->name);
+            break;
+
+        case NODE_ASSIGN:
+            printf("ASSIGN\n");
+            break;
+
+        case NODE_IF:
+            printf("IF\n");
+            break;
+
+        case NODE_WHILE:
+            printf("WHILE\n");
+            break;
+
+        case NODE_RETURN:
+            printf("RETURN\n");
+            break;
+
+        case NODE_BLOCK:
+            printf("BLOCK\n");
+            break;
+
+        case NODE_SEQ:
+            printf("SEQ\n");
+            break;
+
+        case NODE_PROG:
+            printf("PROGRAM\n");
+            break;
+
+        default:
+            printf("NODO DESCONOCIDO\n");
+    }
+
+    //Recursivamente imprimo los hijos (middle es el then del IF)
+    printAST(node->left, level + 1);
+    printAST(node->middle, level + 1);
+    printAST(node->right, level + 1);
 }
 
 //Liberacion de memoria (recorrido post-orden)
