@@ -57,7 +57,10 @@ typedef enum {
 
 typedef struct Symbol{
     SymbolType kind ;                                       /*Tipo del simbolo */
-    union { int ival; float fval; bool bval; } value;       /*Valor del simbolo */
+    union { int ival;
+            float fval;
+            bool bval;
+    } value;                                                /*Valor del simbolo */
     char* name;                                             /*Id del simbolo */
     DataType type;
 } Symbol;
