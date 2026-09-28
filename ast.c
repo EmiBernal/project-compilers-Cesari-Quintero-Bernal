@@ -179,7 +179,13 @@ ASTNode* createDeclNode(DataType var_type, char* id_name) {
     if (symbol == NULL) {
         return NULL;
     }
-    return newNode(NODE_DECL, symbol, NULL, NULL, NULL);
+    ASTNode* node = newNode(NODE_DECL, symbol, NULL, NULL, NULL);
+    if (node == NULL)
+    {
+        free(symbol);
+        return NULL;
+    }
+    return node;
 }
 
 ASTNode* createParamNode(DataType type, char* name) {
@@ -187,7 +193,14 @@ ASTNode* createParamNode(DataType type, char* name) {
     if (symbol == NULL) {
         return NULL;
     }
-    return newNode(NODE_PARAM, symbol, NULL, NULL, NULL);
+
+    ASTNode* node = newNode(NODE_PARAM, symbol, NULL, NULL, NULL);
+
+    if (node == NULL) {
+        free(symbol);
+        return NULL;
+    }
+    return node;
 }
 
 ASTNode* createMethodNode(DataType return_type, char* name, ASTNode* params, ASTNode* body) {
@@ -195,20 +208,43 @@ ASTNode* createMethodNode(DataType return_type, char* name, ASTNode* params, AST
     if (symbol == NULL) {
         return NULL;
     }
-    return newNode(NODE_METHOD, symbol, params, NULL, body);
+
+    ASTNode* node = newNode(NODE_METHOD, symbol, params, NULL, body);
+
+    if (node == NULL) {
+        free(symbol);
+        return NULL;
+    }
+    return node;
 }
 
 
 //Listas y programa
 
 ASTNode* createSeqNode(ASTNode* current, ASTNode* next) {
-    // TODO: implementar
-    return NULL;
+    return newNode(NODE_SEQ, NULL, current, NULL, next);
+}
+
+ASTNode* enlistSeqNode(ASTNode* list, ASTNode* item) {
+    ASTNode* new_node = createSeqNode(item, NULL);
+    if (new_node == NULL) {
+        return NULL;
+    }
+    if (list == NULL) {
+        return new_node;
+    }
+
+    ASTNode* cursor = list;
+
+    while (cursor->right != NULL) {
+        cursor = cursor->right;
+    }
+    cursor->right = new_node;
+    return list;
 }
 
 ASTNode* createProgNode(ASTNode* globals, ASTNode* methods) {
-    // TODO: implementar
-    return NULL;
+    return newNode(NODE_PROG, NULL, globals, NULL, methods);
 }
 
 
