@@ -38,8 +38,6 @@ typedef enum {
     //operadores
     OP_ADD,
     OP_MUL,
-    OP_AND,
-    OP_OR,
     OP_SUB,
     OP_DIV,
     OP_MOD,
@@ -54,5 +52,22 @@ typedef enum {
     OP_UMINUS,
     OP_NEG //negacion
 } SymbolType;
+
+
+typedef struct Symbol{
+    SymbolType kind ;               /*Tipo del simbolo */
+    int value;                      /*Valor del simbolo */
+    char* name;                     /*Id del simbolo */
+    DataType type;
+} Symbol;
+
+
+//Defino la estructura de datos del AST
+typedef struct ASTNode{
+    NodeType type;              /*Tipo del nodo */
+    Symbol* info;           /*Simbolo del nodo */
+    struct ASTNode* left;        /*Nodo izquierdo */
+    struct ASTNode* right;        /*Nodo derecho */
+} ASTNode;
 
 #endif
