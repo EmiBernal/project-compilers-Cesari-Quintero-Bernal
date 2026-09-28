@@ -38,7 +38,7 @@ void yyerror(const char *s);
 
 %%
 
-program: %empty | program var_decl | program method_decl;
+program: %empty | program var_decl | program method_decl; //si quitamos empty el parser no compila porque nunca se llega al caso base 
 type: INT | BOOLEAN | FLOAT;
 var_decl: type id_list SEMI;
 id_list: ID | id_list COMMA ID;
