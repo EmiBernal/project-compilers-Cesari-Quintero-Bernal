@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "ast.h"
+extern int yylineno;
 
 static ASTNode* newNode(NodeType type, Symbol* info, ASTNode* left, ASTNode* middle, ASTNode* right) {
     ASTNode* node = (ASTNode*) malloc(sizeof(ASTNode));
@@ -15,6 +16,7 @@ static ASTNode* newNode(NodeType type, Symbol* info, ASTNode* left, ASTNode* mid
     return node;
 }
 
+//Reserva memoria para un simbolo e inicializa sus campos
 static Symbol* newSymbol(SymbolType kind, DataType type, char* name) {
     Symbol* sym = (Symbol*) malloc(sizeof(Symbol));
     if(sym == NULL){
@@ -24,6 +26,7 @@ static Symbol* newSymbol(SymbolType kind, DataType type, char* name) {
     sym->value.ival = 0;
     sym->type = type;
     sym->name = name;
+
     return sym;
 }
 
@@ -42,7 +45,7 @@ ASTNode* createNumNode(int val) {
     ASTNode* node = newNode(NODE_NUM, sym, NULL, NULL, NULL);
     if(node == NULL){
         free(sym);
-        return NULL;
+    return NULL;
     }
     return node;
 }
@@ -58,7 +61,7 @@ ASTNode* createBoolNode(bool val) {
     ASTNode* node = newNode(NODE_BOOL, sym, NULL, NULL, NULL);
     if(node == NULL){
         free(sym);
-        return NULL;
+    return NULL;
     }
     return node;
 }
@@ -75,10 +78,11 @@ ASTNode* createFloatNode(float val) {
     ASTNode* node = newNode(NODE_FLOAT, sym, NULL, NULL, NULL);
     if(node == NULL){
         free(sym);
-        return NULL;
+    return NULL;
     }
     return node;
 }
+
 
 ASTNode* createIdNode(char* name) {
     //Creo el simbolo
@@ -92,6 +96,7 @@ ASTNode* createIdNode(char* name) {
         return NULL;
     }
     return node;
+
 }
 
 //Expresiones
@@ -106,7 +111,7 @@ ASTNode* createOpNode(SymbolType op, ASTNode* left, ASTNode* right) {
     ASTNode* node = newNode(NODE_OP, sym, left, NULL, right);
     if(node == NULL){
         free(sym);
-        return NULL;
+    return NULL;
     }
     return node;
 }
@@ -121,7 +126,7 @@ ASTNode* createUnopNode(SymbolType op, ASTNode* expr) {
     ASTNode* node = newNode(NODE_UNOP, sym, NULL, NULL, NULL);
     if(node == NULL){
         free(sym);
-        return NULL;
+    return NULL;
     }
     return node;
 }
@@ -130,8 +135,8 @@ ASTNode* createCallNode(char* function_name, ASTNode* args) {
     //Creo el simbolo
     Symbol* sym = newSymbol(FUNCTION, TYPE_VOID, function_name);
     if(sym == NULL){
-        return NULL;
-    }
+    return NULL;
+}
     //Creo un nodo
     ASTNode* node = newNode(NODE_CALL, sym, args, NULL, NULL);
     if(node == NULL){
@@ -144,46 +149,53 @@ ASTNode* createCallNode(char* function_name, ASTNode* args) {
 //Sentencias
 
 ASTNode* createAssignNode(char* id_name, ASTNode* expression) {
-    // TODO: implementar
-    return NULL;
+    ASTNode* id_node = createIdNode(id_name);
+    if (id_node == NULL) {
+        return NULL;
+    }
+    return newNode(NODE_ASSIGN, NULL, id_node, NULL, expression);
 }
 
 ASTNode* createReturnNode(ASTNode* expression) {
-    // TODO: implementar
-    return NULL;
+    return newNode(NODE_RETURN, NULL, expression, NULL, NULL);    
 }
 
 ASTNode* createIfNode(ASTNode* condition, ASTNode* then_branch, ASTNode* else_branch) {
-    // TODO: implementar
-    return NULL;
+    return newNode(NODE_IF, NULL, condition, then_branch, else_branch);    
 }
 
-ASTNode* createWhileNode(ASTNode* cond, ASTNode* body) {
-    // TODO: implementar
-    return NULL;
+ASTNode* createWhileNode(ASTNode* condition, ASTNode* body) {
+    return newNode(NODE_WHILE, NULL, condition, NULL, body);
 }
 
 ASTNode* createBlockNode(ASTNode* decls, ASTNode* stmts) {
-    // TODO: implementar
-    return NULL;
+    return newNode(NODE_BLOCK, NULL, decls, NULL, stmts);
 }
-
 
 //Declaraciones
 
 ASTNode* createDeclNode(DataType var_type, char* id_name) {
-    // TODO: implementar
-    return NULL;
+    Symbol* symbol = newSymbol(VAR, var_type, id_name);
+    if (symbol == NULL) {
+        return NULL;
+    }
+    return newNode(NODE_DECL, symbol, NULL, NULL, NULL);
 }
 
 ASTNode* createParamNode(DataType type, char* name) {
-    // TODO: implementar
-    return NULL;
+    Symbol* symbol = newSymbol(PARAM, type, name);
+    if (symbol == NULL) {
+        return NULL;
+    }
+    return newNode(NODE_PARAM, symbol, NULL, NULL, NULL);
 }
 
 ASTNode* createMethodNode(DataType return_type, char* name, ASTNode* params, ASTNode* body) {
-    // TODO: implementar
-    return NULL;
+    Symbol* symbol = newSymbol(FUNCTION, return_type, name);
+    if (symbol == NULL) {
+        return NULL;
+    }
+    return newNode(NODE_METHOD, symbol, params, NULL, body);
 }
 
 

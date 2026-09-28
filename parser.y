@@ -56,7 +56,7 @@ param_list: type ID | param_list COMMA type ID;
 
 block: LBRACE block_var_decls statements RBRACE;
 block_var_decls: %empty | block_var_decls var_decl;
-statements: %empty | statement statements;
+statements: %empty | statements statement;
 
 statement
         : ID ASSIGN expr SEMI 

@@ -83,11 +83,11 @@ ASTNode* createIdNode(char* name);
 ASTNode* createOpNode(SymbolType op, ASTNode* left, ASTNode* right);
 ASTNode* createUnopNode(SymbolType op, ASTNode* expr);                                  //op es OP_UMINUS u OP_NEG
 ASTNode* createAssignNode(char* id_name, ASTNode* expression);
-ASTNode* createDeclNode(DataType var_type, char* id_name);
+ASTNode* createDeclNode(DataType var_type, char* name);
 ASTNode* createReturnNode(ASTNode* expression);
 ASTNode* createFloatNode(float val);
 ASTNode* createIfNode(ASTNode* condition, ASTNode* then_branch, ASTNode* else_branch);  //else_branch puede llegar a ser null
-ASTNode* createWhileNode(ASTNode* cond, ASTNode* body);
+ASTNode* createWhileNode(ASTNode* condition, ASTNode* body);
 ASTNode* createCallNode(char* function_name, ASTNode* args);
 ASTNode* createParamNode(DataType type, char* name);
 ASTNode* createMethodNode(DataType return_type, char* name, ASTNode* params, ASTNode* body);
