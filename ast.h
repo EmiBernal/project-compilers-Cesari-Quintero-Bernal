@@ -2,6 +2,7 @@
 #define AST_H
 
 #include <stdbool.h>
+#include <stdlib.h>
 
 typedef enum {
     TYPE_INT,
@@ -55,19 +56,46 @@ typedef enum {
 
 
 typedef struct Symbol{
-    SymbolType kind ;               /*Tipo del simbolo */
-    int value;                      /*Valor del simbolo */
-    char* name;                     /*Id del simbolo */
+    SymbolType kind ;                                       /*Tipo del simbolo */
+    union { int ival; float fval; bool bval; } value;       /*Valor del simbolo */
+    char* name;                                             /*Id del simbolo */
     DataType type;
 } Symbol;
 
 
 //Defino la estructura de datos del AST
 typedef struct ASTNode{
-    NodeType type;              /*Tipo del nodo */
-    Symbol* info;           /*Simbolo del nodo */
-    struct ASTNode* left;        /*Nodo izquierdo */
-    struct ASTNode* right;        /*Nodo derecho */
+    NodeType type;                  /*Tipo del nodo */
+    Symbol* info;                   /*Simbolo del nodo */
+    struct ASTNode* left;           /*Nodo izquierdo */
+    struct ASTNode* middle;         /*Nodo medio */
+    struct ASTNode* right;          /*Nodo derecho */
 } ASTNode;
+
+
+//Perfiles de funciones auxiliares
+ASTNode* createNumNode(int val);
+ASTNode* createBoolNode(bool val);
+ASTNode* createIdNode(char* name);
+ASTNode* createOpNode(SymbolType op, ASTNode* left, ASTNode* right);
+ASTNode* createUnopNode(SymbolType op, ASTNode* expr);                                  //op es OP_UMINUS u OP_NEG
+ASTNode* createAssignNode(char* id_name, ASTNode* expression);
+ASTNode* createDeclNode(DataType var_type, char* id_name);
+ASTNode* createReturnNode(ASTNode* expression);
+ASTNode* createFloatNode(float val);
+ASTNode* createIfNode(ASTNode* condition, ASTNode* then_branch, ASTNode* else_branch);  //else_branch puede llegar a ser null
+ASTNode* createWhileNode(ASTNode* cond, ASTNode* body);
+ASTNode* createCallNode(char* function_name, ASTNode* args);
+ASTNode* createParamNode(DataType type, char* name);
+ASTNode* createMethodNode(DataType return_type, char* name, ASTNode* params, ASTNode* body);
+ASTNode* createBlockNode(ASTNode* decls, ASTNode* stmts);
+ASTNode* createSeqNode(ASTNode* current, ASTNode* next);
+ASTNode* createProgNode(ASTNode* globals, ASTNode* methods);
+
+//Funcion para ver el arbol AST
+void printAST(ASTNode* node, int level);
+
+//Funcion para liberar la memoria del arbol
+void freeAST(ASTNode* node);
 
 #endif
