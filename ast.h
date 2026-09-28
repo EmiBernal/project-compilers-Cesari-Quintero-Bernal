@@ -93,6 +93,7 @@ ASTNode* createParamNode(DataType type, char* name);
 ASTNode* createMethodNode(DataType return_type, char* name, ASTNode* params, ASTNode* body);
 ASTNode* createBlockNode(ASTNode* decls, ASTNode* stmts);
 ASTNode* createSeqNode(ASTNode* current, ASTNode* next);
+ASTNode* enlistSeqNode(ASTNode* list, ASTNode* item);
 ASTNode* createProgNode(ASTNode* globals, ASTNode* methods);
 
 //Funcion para ver el arbol AST
