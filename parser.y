@@ -1,4 +1,9 @@
+%code requires {
+    #include "ast.h"
+}
+
 %{
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "ast.h"
@@ -86,45 +91,56 @@ param_list: type ID {$$ = createSeqNode(createParamNode($1, $2), NULL); }
     | param_list COMMA type ID {$$ = enlistSeqNode($1, createParamNode($3, $4)); }
     ;
 
-block: LBRACE block_var_decls statements RBRACE;
-block_var_decls: %empty | block_var_decls var_decl;
-statements: %empty | statements statement;
+block: LBRACE block_var_decls statements RBRACE {$$ = createBlockNode($2, $3);}
+    ;
+block_var_decls: %empty {$$ = NULL;} | block_var_decls var_decl {$$ = enlistSeqNode($1, $2);}
+    ;
+statements: %empty {$$ = NULL;}
+    | statements statement {$$ = enlistSeqNode($1, $2);}
+    ;
 
 statement
-        : ID ASSIGN expr SEMI 
-        | method_call SEMI
-        | IF LPAREN expr RPAREN block
-        | IF LPAREN expr RPAREN block ELSE block
-        | WHILE LPAREN expr RPAREN block
-        | RETURN expr SEMI
-        | RETURN SEMI
-        | SEMI
-        | block
+        : ID ASSIGN expr SEMI {$$ = createAssignNode($1, $3);}
+        | method_call SEMI {$$ = $1;}
+        | IF LPAREN expr RPAREN block {$$ = createIfNode($3, $5, NULL);}
+        | IF LPAREN expr RPAREN block ELSE block {$$ = createIfNode($3, $5, $7);}
+        | WHILE LPAREN expr RPAREN block {$$ = createWhileNode($3, $5);}
+        | RETURN expr SEMI {$$ = createReturnNode($2);}
+        | RETURN SEMI {$$ = createReturnNode(NULL);}
+        | SEMI {$$ = NULL;}
+        | block {$$ = $1;}
         ;
 
-method_call: ID LPAREN args RPAREN;
-args: %empty | arg_list;
-arg_list: expr | arg_list COMMA expr;
+method_call: ID LPAREN args RPAREN {$$ = createCallNode($1, $3);}
+    ;
+
+args: %empty {$$ = NULL;} 
+    | arg_list {$$ = $1;}
+    ;
+arg_list: expr {$$ = createSeqNode($1, NULL);}
+    | arg_list COMMA expr {$$ = enlistSeqNode($1, $3);}
+    ;
+
 expr
-    : ID
-    | method_call
-    | NUM
-    | FNUM
-    | TRUE
-    | FALSE
-    | expr PLUS expr
-    | expr MINUS expr
-    | expr TIMES expr
-    | expr SLASH expr
-    | expr MOD expr
-    | expr LT expr
-    | expr GT expr
-    | expr EQ expr
-    | expr AND expr
-    | expr OR expr
-    | NOT expr
-    | LPAREN expr RPAREN
-    | MINUS expr %prec UMINUS
+    : ID {$$ = createIdNode($1);}
+    | method_call {$$ = $1;}
+    | NUM {$$ = createNumNode($1);}
+    | FNUM {$$ = createFloatNode($1);}
+    | TRUE {$$ = createBoolNode(true);}
+    | FALSE {$$ = createBoolNode(false);}
+    | expr PLUS expr {$$ = createOpNode(OP_ADD, $1, $3);}
+    | expr MINUS expr {$$ = createOpNode(OP_SUB, $1, $3);}
+    | expr TIMES expr {$$ = createOpNode(OP_MUL, $1, $3);}
+    | expr SLASH expr {$$ = createOpNode(OP_DIV, $1, $3);}
+    | expr MOD expr {$$ = createOpNode(OP_MOD, $1, $3);}
+    | expr LT expr {$$ = createOpNode(OP_LT, $1, $3);}
+    | expr GT expr {$$ = createOpNode(OP_GT, $1, $3);}
+    | expr EQ expr {$$ = createOpNode(OP_EQ, $1, $3);}
+    | expr AND expr {$$ = createOpNode(OP_AND, $1, $3);}
+    | expr OR expr {$$ = createOpNode(OP_OR, $1, $3);}
+    | NOT expr {$$ = createUnopNode(OP_NEG, $2);}
+    | LPAREN expr RPAREN {$$ = $2;}
+    | MINUS expr %prec UMINUS {$$ = createUnopNode(OP_UMINUS, $2);}
     ;
 
 %%
@@ -142,6 +158,7 @@ int main(int argc, char **argv){
     }
 
     if(yyparse() == 0){
+        printAST(root, 0);
         printf("Programa aceptado correctamente.\n");
         
     }
