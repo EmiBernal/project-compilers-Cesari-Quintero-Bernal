@@ -10,6 +10,7 @@ static ASTNode* newNode(NodeType type, Symbol* info, ASTNode* left, ASTNode* mid
     }
     node->type = type;
     node->info = info;
+    node->line = yylineno;
     node->left = left;
     node->middle = middle;
     node->right = right;
