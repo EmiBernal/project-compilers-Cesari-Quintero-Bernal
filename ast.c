@@ -123,7 +123,7 @@ ASTNode* createUnopNode(SymbolType op, ASTNode* expr) {
         return NULL;
     }
     //Creo un nodo
-    ASTNode* node = newNode(NODE_UNOP, sym, NULL, NULL, NULL);
+    ASTNode* node = newNode(NODE_UNOP, sym, expr, NULL, NULL);
     if(node == NULL){
         free(sym);
     return NULL;
