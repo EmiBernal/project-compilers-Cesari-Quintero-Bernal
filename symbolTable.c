@@ -1,5 +1,6 @@
 #include "symbolTable.h"
 #include <string.h>
+#include <stdlib.h>
 
 void initSymbolTable(SymbolTable* table){
     table->top = NULL;
