@@ -126,7 +126,7 @@ ASTNode* createUnopNode(SymbolType op, ASTNode* expr) {
     ASTNode* node = newNode(NODE_UNOP, sym, expr, NULL, NULL);
     if(node == NULL){
         free(sym);
-    return NULL;
+        return NULL;
     }
     return node;
 }
@@ -135,8 +135,8 @@ ASTNode* createCallNode(char* function_name, ASTNode* args) {
     //Creo el simbolo
     Symbol* sym = newSymbol(FUNCTION, TYPE_VOID, function_name);
     if(sym == NULL){
-    return NULL;
-}
+        return NULL;
+    }
     //Creo un nodo
     ASTNode* node = newNode(NODE_CALL, sym, args, NULL, NULL);
     if(node == NULL){
@@ -157,11 +157,11 @@ ASTNode* createAssignNode(char* id_name, ASTNode* expression) {
 }
 
 ASTNode* createReturnNode(ASTNode* expression) {
-    return newNode(NODE_RETURN, NULL, expression, NULL, NULL);    
+    return newNode(NODE_RETURN, NULL, expression, NULL, NULL);
 }
 
 ASTNode* createIfNode(ASTNode* condition, ASTNode* then_branch, ASTNode* else_branch) {
-    return newNode(NODE_IF, NULL, condition, then_branch, else_branch);    
+    return newNode(NODE_IF, NULL, condition, then_branch, else_branch);
 }
 
 ASTNode* createWhileNode(ASTNode* condition, ASTNode* body) {
