@@ -2,7 +2,6 @@
 #define AST_H
 
 #include <stdbool.h>
-#include <stdlib.h>
 
 typedef enum {
     TYPE_INT,
@@ -70,7 +69,8 @@ typedef struct Symbol{
 typedef struct ASTNode{
     NodeType type;                  /*Tipo del nodo */
     Symbol* info;                   /*Simbolo del nodo */
-    struct ASTNode* left;           /*Nodo izquierdo */
+    int line;                       /*Linea del programa donde se creo el nodo */
+    struct ASTNode* left;          /*Nodo izquierdo */
     struct ASTNode* middle;         /*Nodo medio */
     struct ASTNode* right;          /*Nodo derecho */
 } ASTNode;
@@ -83,7 +83,7 @@ ASTNode* createIdNode(char* name);
 ASTNode* createOpNode(SymbolType op, ASTNode* left, ASTNode* right);
 ASTNode* createUnopNode(SymbolType op, ASTNode* expr);                                  //op es OP_UMINUS u OP_NEG
 ASTNode* createAssignNode(char* id_name, ASTNode* expression);
-ASTNode* createDeclNode(DataType var_type, char* name);
+ASTNode* createDeclNode(DataType var_type, char* id_name);
 ASTNode* createReturnNode(ASTNode* expression);
 ASTNode* createFloatNode(float val);
 ASTNode* createIfNode(ASTNode* condition, ASTNode* then_branch, ASTNode* else_branch);  //else_branch puede llegar a ser null
