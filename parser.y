@@ -1,6 +1,7 @@
 %{
 #include <stdio.h>
 #include <stdlib.h>
+#include "ast.h"
 
 extern FILE *yyin;
 extern int yylineno;
@@ -8,13 +9,25 @@ extern int yylineno;
 int yylex(void);
 void yyerror(const char *s);
 
+ASTNode* root = NULL;
+
+static void applyDeclType(ASTNode* idList, DataType type) {
+    ASTNode* cursor = idList;
+    while (cursor != NULL) {
+        cursor->left->type = NODE_DECL;
+        cursor->left->info->type = type;
+        cursor = cursor->right;
+    }
+}
+
 %}
 
 %union {
     int num;       /*números Enteros*/
     float fnum;		/* Números flotantes*/
     char* string;   /* Identificadores */
-
+    ASTNode* node;  /* Nodo del AST */
+    DataType dtype;  /* Tipo de dato */
 }
 
 %define parse.error verbose
@@ -25,6 +38,8 @@ void yyerror(const char *s);
 %token TIMES ASSIGN SEMI LPAREN RPAREN LBRACE RBRACE PLUS MINUS SLASH MOD COMMA
 %token LT GT EQ AND OR NOT
 
+%type <dtype> type
+%type <node> program var_decls method_decls var_decl id_list method_decl params param_list block block_var_decls statements statement method_call args arg_list expr
 %start program
 
 %left OR
@@ -38,21 +53,38 @@ void yyerror(const char *s);
 
 %%
 
-program:  var_decls method_decls | method_decls;
-type: INT | BOOLEAN | FLOAT;
+program:  var_decls method_decls {root = createProgNode($1, $2); $$ = root;}
+    | method_decls {root = createProgNode(NULL, $1); $$ = root;}
+    ; 
+type: INT {$$ = TYPE_INT;} 
+    | BOOLEAN {$$ = TYPE_BOOL;}
+    | FLOAT {$$ = TYPE_FLOAT;}
+    ;
 
-var_decls: var_decls var_decl | var_decl;
+var_decls: var_decls var_decl {$$ = enlistSeqNode($1, $2);} 
+        | var_decl {$$ = createSeqNode($1, NULL);}
+        ;
 
-method_decls: method_decls method_decl | method_decl;
-var_decl: type id_list SEMI;
-id_list: ID | id_list COMMA ID;
+method_decls: method_decls method_decl {$$ = enlistSeqNode($1, $2);} 
+            | method_decl {$$ = createSeqNode($1, NULL);}
+            ;
+var_decl: type id_list SEMI {applyDeclType($2, $1); $$ = $2;}
+;
+id_list: ID {$$ = createSeqNode(createIdNode($1), NULL);} 
+    | id_list COMMA ID {$$ = enlistSeqNode($1, createIdNode($3));}
+    ;
 
 method_decl
-        : type ID LPAREN params RPAREN block
-        | VOID ID LPAREN params RPAREN block;
+        : type ID LPAREN params RPAREN block {$$ = createMethodNode($1, $2, $4, $6);}
+        | VOID ID LPAREN params RPAREN block {$$ = createMethodNode(TYPE_VOID, $2, $4, $6);}
+        ;
 
-params: %empty | param_list;
-param_list: type ID | param_list COMMA type ID;
+params: %empty {$$ = NULL;} 
+    | param_list {$$ = $1;}
+    ;
+param_list: type ID {$$ = createSeqNode(createParamNode($1, $2), NULL); }
+    | param_list COMMA type ID {$$ = enlistSeqNode($1, createParamNode($3, $4)); }
+    ;
 
 block: LBRACE block_var_decls statements RBRACE;
 block_var_decls: %empty | block_var_decls var_decl;
