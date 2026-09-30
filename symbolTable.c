@@ -8,7 +8,7 @@ void initSymbolTable(SymbolTable* table){
 
 void enterScope(SymbolTable* table){
     Scope* newScope = malloc(sizeof(Scope));
-    newScope->symbols = NULL; /* no tiene simbolos todavia */
+    newScope->symbols = NULL; //inicia sin simbolos
     newScope->previous = table->top;
     table->top = newScope; 
 }
@@ -26,7 +26,7 @@ void exitScope(SymbolTable* table){
     free(scopeToRemove);
 }
 
-bool insertSymbol(SymbolTable* table, Symbol* symbol){
+bool insertSymbol(SymbolTable* table, Symbol* symbol){ //Encadena a la cabeza
     SymbolTableEntry* current = table->top->symbols; 
     while(current != NULL){
         if(strcmp(current->symbol->name, symbol->name) == 0){
@@ -36,8 +36,8 @@ bool insertSymbol(SymbolTable* table, Symbol* symbol){
     }
     SymbolTableEntry* newSymbol = malloc(sizeof(SymbolTableEntry));
     newSymbol->symbol = symbol; 
-    newSymbol->next = table->top->symbols; /* apunta al primer elemento */
-    table->top->symbols = newSymbol; /* el nuevo es el primero */
+    newSymbol->next = table->top->symbols; //apunta al primer elemento
+    table->top->symbols = newSymbol; //el nuevo es el primero
     return true;
 }
 
