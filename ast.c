@@ -14,6 +14,8 @@ static ASTNode* newNode(NodeType type, Symbol* info, ASTNode* left, ASTNode* mid
     node->left = left;
     node->middle = middle;
     node->right = right;
+
+    node->evalType = TYPE_VOID;
     return node;
 }
 
@@ -27,6 +29,8 @@ static Symbol* newSymbol(SymbolType kind, DataType type, char* name) {
     sym->value.ival = 0;
     sym->type = type;
     sym->name = name;
+    sym->global = true; 
+    sym->params = NULL; 
 
     return sym;
 }

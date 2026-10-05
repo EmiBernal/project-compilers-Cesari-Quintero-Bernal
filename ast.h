@@ -62,8 +62,8 @@ typedef struct Symbol{
     } value;            /*Valor del simbolo */
     char* name;         /*Id del simbolo */
     DataType type;      
-    //agregar campo para parametros
-    //agregar campo vars locales globales                                  
+    struct ASTNode* params;
+    bool global;                                  
 } Symbol;
 
 
@@ -75,6 +75,7 @@ typedef struct ASTNode{
     struct ASTNode* left;          /*Nodo izquierdo */
     struct ASTNode* middle;         /*Nodo medio */
     struct ASTNode* right;          /*Nodo derecho */
+    DataType evalType;
 } ASTNode;
 
 
