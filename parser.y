@@ -160,7 +160,11 @@ int main(int argc, char **argv){
     if(yyparse() == 0){
         printAST(root, 0);
         printf("Programa aceptado correctamente.\n");
-        
+        freeAST(root);
+    }
+
+    if(argc > 1 && yyin != NULL){
+        fclose(yyin);
     }
 
     return 0;
