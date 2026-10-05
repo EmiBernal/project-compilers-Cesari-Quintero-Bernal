@@ -79,7 +79,7 @@ ASTNode* createFloatNode(float val) {
     }
     //obtengo el valor del simbolo
     sym->value.fval = val;
-
+    sym->params = NULL;
     ASTNode* node = newNode(NODE_FLOAT, sym, NULL, NULL, NULL);
     if(node == NULL){
         free(sym);

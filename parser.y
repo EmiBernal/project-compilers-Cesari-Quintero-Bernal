@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "ast.h"
+#include "semantic.h"
 
 extern FILE *yyin;
 extern int yylineno;
@@ -157,7 +158,7 @@ int main(int argc, char **argv){
         }
     }
 
-    if(yyparse() == 0){
+    if(yyparse() == 0 && semanticAnalysis(root) == 0){
         printAST(root, 0);
         printf("Programa aceptado correctamente.\n");
         freeAST(root);
