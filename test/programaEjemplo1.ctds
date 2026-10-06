@@ -4,10 +4,15 @@ int inc(int x) {
 
 void main() {
     int y;
+    int resultado;
+
     y = 4;
+
     if (y == 1) {
-        return 1;
+        resultado = 1;
+        return;
     } else {
-        return inc(y);
+        resultado = inc(y);
+        return;
     }
 }

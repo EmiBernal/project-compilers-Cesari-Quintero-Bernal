@@ -4,6 +4,7 @@ int inc(int x) {
 
 void main() {
     int y;
+    int resultado;
     y = 4;
 
     while (y > 1) {
@@ -13,7 +14,7 @@ void main() {
     /* 
         hola muy buenos dias
     */
-
-    return inc(y);
+    resultado = inc(y);
+    return;
     
 }

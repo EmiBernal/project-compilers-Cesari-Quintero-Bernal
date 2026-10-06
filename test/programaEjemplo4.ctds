@@ -1,0 +1,16 @@
+void main() {
+    int edad;
+    boolean tienePermiso;
+    boolean puedeEntrar;
+
+    edad = 16;
+    tienePermiso = true;
+
+    if (edad > 17 || tienePermiso == true) {
+        puedeEntrar = true;
+    } else {
+        puedeEntrar = false;
+    }
+
+    return;
+}
