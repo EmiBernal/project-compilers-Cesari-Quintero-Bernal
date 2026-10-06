@@ -39,18 +39,19 @@ static void checkNode(ASTNode* n){
 
         case NODE_DECL:
             case NODE_PARAM: {
-                bool nuevoParam = insertSymbol(&table, n->info);
+                bool newParam = insertSymbol(&table, n->info);
                 
                 //Si ya fue declarado previamente
-                if(!nuevoParam){
+                if(!newParam){
                     semanticError("'%s' ya declarado en este bloque", n->line, n->info->name);
                 }   
                 break;
             }
-                
         case NODE_METHOD:
             n->info->params = n->left;   //guardo los parametros para chequear las llamadas
-            if(!insertSymbol(&table, n->info)){
+            bool newMethod = insertSymbol(&table, n->info);
+
+            if(!newMethod){
                 semanticError("metodo '%s' ya declarado", n->line, n->info->name);
             }
             currentMethod = n->info;
