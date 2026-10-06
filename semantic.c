@@ -11,6 +11,9 @@ static int errors = 0;
 static void checkNode(ASTNode* n);
 static DataType checkExpr(ASTNode* n);
 static DataType checkCall(ASTNode* n);
+static bool isNumeric(DataType type);
+static bool areCompatible(DataType expected, DataType received);
+static DataType arithmeticResultType(DataType left, DataType right);
 
 static void semanticError(const char* message, int line,...) {
     va_list args;
@@ -51,9 +54,10 @@ static void checkNode(ASTNode* n){
                 semanticError("metodo '%s' ya declarado", n->line, n->info->name);
             }
             currentMethod = n->info;
-            enterScope(&table); //Scope de parametros
+            enterScope(&table); // Scope de la función: parámetros y variables locales del cuerpo
             checkNode(n->left); //inserta los parametros
-            checkNode(n->right); //cuerpo (si es un bloque abre su propio scope)
+            checkNode(n->right->left); //declaraciones locales 
+            checkNode(n->right->right); //sentencias 
             exitScope(&table);
             currentMethod = NULL;
             break;
@@ -69,8 +73,8 @@ static void checkNode(ASTNode* n){
                 //Guardo los tipos de cada expresion
                 DataType left = checkExpr(n->left);
                 DataType right = checkExpr(n->right);
-                //Chequeo que los tipos sean iguales, sino es un error
-                if(left != right) semanticError("asignacion con tipos incompatibles", n->line);
+                //Chequeo que los tipos sean compatibles, sino es un error
+                if(!areCompatible(left, right)) semanticError("asignacion con tipos incompatibles", n->line);
                 break;
             }
 
@@ -78,7 +82,7 @@ static void checkNode(ASTNode* n){
             case NODE_WHILE:
                 if(checkExpr(n->left) != TYPE_BOOL) semanticError("La condicion debe ser de tipo boolean", n->line);
                 checkNode(n->middle); //then (En un while esto es NULL)
-                checkNode(n->right);  //else  
+                checkNode(n->right);  //else (en un while, es el cuerpo) 
                 break;
 
         case NODE_RETURN: {
@@ -86,7 +90,7 @@ static void checkNode(ASTNode* n){
                 DataType expected = currentMethod->type;
                 if(n->left == NULL && expected != TYPE_VOID) semanticError("Se esperaba un valor de retorno", n->line);
                 else if(n->left != NULL && expected == TYPE_VOID) semanticError("No se esperaba un valor de retorno", n->line);
-                else if(n->left != NULL && checkExpr(n->left) != expected) semanticError("Tipo de retorno incompatible", n->line);
+                else if(n->left != NULL && !areCompatible(expected, checkExpr(n->left))) semanticError("Tipo de retorno incompatible", n->line);
                 break;
             }
         
@@ -137,15 +141,14 @@ static DataType checkExpr(ASTNode* n){
             DataType right = checkExpr(n->right);
             switch(n->info->kind){
 
-                //Aritmeticos: operandos int o float del mismo tipo, el resultado es de ese tipo
+                // operandos int o float; resultado float si alguno es float, sino int
                 case OP_ADD:
                 case OP_SUB:
                 case OP_MUL:
                 case OP_DIV:
-                    if(left != right || (left != TYPE_INT && left != TYPE_FLOAT)){
+                    t = arithmeticResultType(left, right);
+                    if(t == TYPE_VOID){
                         semanticError("Operacion aritmetica con tipos incompatibles", n->line);
-                    } else {
-                        t = left;
                     }
                     break;
 
@@ -167,18 +170,18 @@ static DataType checkExpr(ASTNode* n){
                     t = TYPE_BOOL;
                     break;
 
-                //Igualdad: operandos del mismo tipo (cualquiera)
+                //operandos compatibles: mismo tipo, o int y float entre sí
                 case OP_EQ:
-                    if(left != right){
+                    if(!areCompatible(left, right)){
                         semanticError("== entre tipos distintos", n->line);
                     }
                     t = TYPE_BOOL;
                     break;
 
-                //Relacionales: operandos int o float del mismo tipo
+                //int o float, pueden mezclarse
                 case OP_LT:
                 case OP_GT:
-                    if(left != right || (left != TYPE_INT && left != TYPE_FLOAT)){
+                    if(!isNumeric(left) || !isNumeric(right)){
                         semanticError("Comparacion con tipos incompatibles", n->line);
                     }
                     t = TYPE_BOOL;
@@ -229,7 +232,7 @@ static DataType checkCall(ASTNode* n){
     //Mientras haya parametros o expresiones comparo sus tipos
     while(parameters != NULL && expresions != NULL){
         //Voy leyendo ambas listas a la vez comparando tipo y expresion
-        if(checkExpr(expresions->left) != parameters->left->info->type){
+        if(!areCompatible(parameters->left->info->type,checkExpr(expresions->left))){
             semanticError("tipo incompatible en el argumento %d de la llamada a '%s'", n->line, pos, f->name);
         }
         parameters = parameters->right;
@@ -242,15 +245,36 @@ static DataType checkCall(ASTNode* n){
     return f->type;
 } 
 
+static bool isNumeric(DataType type){
+    return type == TYPE_FLOAT || type == TYPE_INT;
+}
+
+static bool areCompatible(DataType expected, DataType received){
+    return expected == received || (isNumeric(expected) && isNumeric(received));
+}
+
+static DataType arithmeticResultType(DataType left, DataType right){
+    if(isNumeric(left) && isNumeric(right)){
+        if(left == TYPE_FLOAT || right == TYPE_FLOAT){
+            return TYPE_FLOAT;
+        } else {
+            return TYPE_INT;
+        }
+    } else {
+        return TYPE_VOID;
+    }
+}
+
+
 int semanticAnalysis(ASTNode* root){
     initSymbolTable(&table);
     enterScope(&table); //Scope global
     checkNode(root->left);
     checkNode(root->right);
-    Symbol* main = lookupSymbol(&table, "main");
-    if(main == NULL || main->kind != FUNCTION || main->type != TYPE_VOID){
-        semanticError("Debe existir un metodo 'main' de tipo void", 0);
-    }else if (main->params != NULL){
+    Symbol* mainSymbol = lookupSymbol(&table, "main");
+    if(mainSymbol == NULL || mainSymbol->kind != FUNCTION){
+        semanticError("Debe existir un metodo 'main'", 0);
+    }else if (mainSymbol->params != NULL){
         semanticError("El metodo 'main' no debe tener parametros", 0);
     }
     exitScope(&table);
