@@ -80,11 +80,15 @@ static void checkNode(ASTNode* n){
             }
 
         case NODE_IF:
-            case NODE_WHILE:
-                if(checkExpr(n->left) != TYPE_BOOL) semanticError("La condicion debe ser de tipo boolean", n->line);
+            case NODE_WHILE:{
+                DataType condition = checkExpr(n->left);
+                if(condition != TYPE_ERROR && condition != TYPE_BOOL) {
+                    semanticError("La condicion debe ser de tipo boolean", n->line);
+                }
                 checkNode(n->middle); //then (En un while esto es NULL)
                 checkNode(n->right);  //else (en un while, es el cuerpo) 
                 break;
+            }
 
         case NODE_RETURN: {
                 //Tipo esperado en base al metodo que estamos ejecutando
@@ -104,7 +108,7 @@ static void checkNode(ASTNode* n){
 
 //expresiones
 static DataType checkExpr(ASTNode* n){
-    DataType t = TYPE_VOID;
+    DataType t = TYPE_ERROR;
     if(n == NULL) return t;
     
     switch(n->type){
@@ -133,6 +137,7 @@ static DataType checkExpr(ASTNode* n){
             t = checkCall(n);
             if (t == TYPE_VOID){
                 semanticError("metodo void '%s' usado en expresion", n->line, n->info->name);
+                t = TYPE_ERROR;
             }
             break;
 
@@ -140,6 +145,7 @@ static DataType checkExpr(ASTNode* n){
             //Obtengo los tipos de mis hijos
             DataType left = checkExpr(n->left);
             DataType right = checkExpr(n->right);
+            bool operandHasError = left == TYPE_ERROR || right == TYPE_ERROR;
             switch(n->info->kind){
 
                 // operandos int o float; resultado float si alguno es float, sino int
@@ -148,24 +154,27 @@ static DataType checkExpr(ASTNode* n){
                 case OP_MUL:
                 case OP_DIV:
                     t = arithmeticResultType(left, right);
-                    if(t == TYPE_VOID){
+                    if(t == TYPE_ERROR && left != TYPE_ERROR && right != TYPE_ERROR){
                         semanticError("Operacion aritmetica con tipos incompatibles", n->line);
                     }
                     break;
 
                 //Resto: solo entre enteros
                 case OP_MOD:
-                    if(left != TYPE_INT || right != TYPE_INT){
-                        semanticError("Los operandos de %% deben ser int", n->line);
-                    } else {
-                        t = TYPE_INT;
+                    if(!operandHasError){
+                        if(left != TYPE_INT || right != TYPE_INT){
+                            semanticError("Los operandos de %% deben ser int", n->line);
+                        } else {
+                            t = TYPE_INT;
+                        }
                     }
+                    
                     break;
 
                 //Logicos: operandos boolean
                 case OP_AND:
                 case OP_OR:
-                    if(left != TYPE_BOOL || right != TYPE_BOOL){
+                    if(!operandHasError && (left != TYPE_BOOL || right != TYPE_BOOL)){
                         semanticError("Operacion logica con tipos incompatibles", n->line);
                     }
                     t = TYPE_BOOL;
@@ -182,7 +191,7 @@ static DataType checkExpr(ASTNode* n){
                 //int o float, pueden mezclarse
                 case OP_LT:
                 case OP_GT:
-                    if(!isNumeric(left) || !isNumeric(right)){
+                    if(!operandHasError && (!isNumeric(left) || !isNumeric(right))){
                         semanticError("Comparacion con tipos incompatibles", n->line);
                     }
                     t = TYPE_BOOL;
@@ -197,13 +206,13 @@ static DataType checkExpr(ASTNode* n){
             DataType operand = checkExpr(n->left);
             if(n->info->kind == OP_NEG){
                 //Negacion logica: operando boolean
-                if(operand != TYPE_BOOL){
+                if(operand != TYPE_BOOL && operand != TYPE_ERROR){
                     semanticError("El operando de ! debe ser boolean", n->line);
                 }
                 t = TYPE_BOOL;
             } else {
                 //Menos unario: operando int o float
-                if(operand != TYPE_INT && operand != TYPE_FLOAT){
+                if(operand != TYPE_INT && operand != TYPE_FLOAT && operand != TYPE_ERROR){
                     semanticError("El operando de - debe ser int o float", n->line);
                 } else {
                     t = operand;
@@ -224,7 +233,7 @@ static DataType checkCall(ASTNode* n){
     //Si no existe o no es un metodo, es un error
     if(f == NULL || f->kind != FUNCTION){
         semanticError("llamada a metodo no declarado '%s'", n->line, n->info->name);
-        return TYPE_VOID;
+        return TYPE_ERROR;
     }
     //Obtengo los parametros y las expresiones para luego comparar
     ASTNode* parameters = f->params;
@@ -251,6 +260,10 @@ static bool isNumeric(DataType type){
 }
 
 static bool areCompatible(DataType expected, DataType received){
+    // si alguno ya tiene error, no se reporta otro por lo mismo
+    if(expected == TYPE_ERROR || received == TYPE_ERROR) {
+        return true; 
+    }
     return expected == received || (isNumeric(expected) && isNumeric(received));
 }
 
@@ -262,7 +275,7 @@ static DataType arithmeticResultType(DataType left, DataType right){
             return TYPE_INT;
         }
     } else {
-        return TYPE_VOID;
+        return TYPE_ERROR;
     }
 }
 

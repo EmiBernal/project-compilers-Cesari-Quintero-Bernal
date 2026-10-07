@@ -7,7 +7,8 @@ typedef enum {
     TYPE_INT,
     TYPE_FLOAT,
     TYPE_BOOL,
-    TYPE_VOID
+    TYPE_VOID,
+    TYPE_ERROR,
 } DataType;
 
 typedef enum {
