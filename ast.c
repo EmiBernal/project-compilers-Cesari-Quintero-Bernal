@@ -302,7 +302,7 @@ void printAST(ASTNode* node, int level){
             break;
 
         case NODE_FLOAT:
-            printf("FLOAT: %f\n", node->info->value.fval);
+            printf("FLOAT: %g\n", node->info->value.fval);
             break;
 
         case NODE_BOOL:
