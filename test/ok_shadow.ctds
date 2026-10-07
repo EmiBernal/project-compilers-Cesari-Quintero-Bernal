@@ -1,0 +1,13 @@
+int a;
+
+void main() {
+    int b;
+    {
+        int a;
+        int b;
+        a = 1;
+        b = 2;
+    }
+    b = 3;
+    return;
+}
