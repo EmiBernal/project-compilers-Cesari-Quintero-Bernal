@@ -15,7 +15,7 @@ Integrantes
 ## Como correr un programa?
 - flex lexer.l
 - bison -d parser.y
-- gcc lex.yy.c parser.tab.c ast.c -o ctds_parser
+- gcc lex.yy.c parser.tab.c ast.c semantic.c symbolTable.c -o ctds_parser
 - ./ctds_parser test/nombreDelPrograma.ctds (por ahora es la única opción)
 
 
