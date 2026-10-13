@@ -20,4 +20,8 @@ typedef struct IntermediateList {
     InstructionNode* tail;
 } IntermediateList;
 
+
+void initIntermediateList(IntermediateList* list);
+void addInstruction(IntermediateList* list, SymbolType opCode, Symbol* arg1, Symbol* arg2, Symbol* result);
+
 #endif // INTERMEDIATE_CODE_H
