@@ -23,5 +23,9 @@ typedef struct IntermediateList {
 
 void initIntermediateList(IntermediateList* list);
 void addInstruction(IntermediateList* list, SymbolType opCode, Symbol* arg1, Symbol* arg2, Symbol* result);
+Symbol* createTempSymbol(DataType type);
+Symbol* createLabelSymbol(void);
+const char* opCodeToString(SymbolType opCode);
+void printIntermediateList(IntermediateList* list);
 
 #endif // INTERMEDIATE_CODE_H
