@@ -27,5 +27,6 @@ Symbol* createTempSymbol(DataType type);
 Symbol* createLabelSymbol(void);
 const char* opCodeToString(SymbolType opCode);
 void printIntermediateList(IntermediateList* list);
+Symbol* generateMidRepresentation(ASTNode* node, IntermediateList* list);
 
 #endif // INTERMEDIATE_CODE_H
