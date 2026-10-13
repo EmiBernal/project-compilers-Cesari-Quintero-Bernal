@@ -163,4 +163,65 @@ void printIntermediateList(IntermediateList* list){
         printInstruction(current->instruction);
         current = current->next;
     }
+    
+}
+
+Symbol* generateMidRepresentation(ASTNode* node, IntermediateList* list) {
+    if (node == NULL) return NULL;
+    switch (node->type) {
+        
+        case NODE_NUM:
+        case NODE_FLOAT:
+        case NODE_BOOL:
+        case NODE_ID:
+            return node->info; //simbolo en info
+
+        //operacion binarias
+
+        case NODE_OP: {
+            Symbol* arg1 = generateMidRepresentation(node->left, list);
+            Symbol* arg2 = generateMidRepresentation(node->right, list);
+            
+            Symbol* temp = createTempSymbol(node->evalType);
+            addInstruction(list, node->info->kind, arg1, arg2, temp);
+            
+            return temp;
+        }
+
+        //operaciones unarias
+        case NODE_UNOP: {
+            Symbol* arg1 = generateMidRepresentation(node->left, list);
+            
+            Symbol* temp = createTempSymbol(node->evalType);
+            
+            addInstruction(list, node->info->kind, arg1, NULL, temp);
+            
+            return temp;
+        }
+
+        // asignacion
+
+        case NODE_ASSIGN: {
+
+            Symbol* dest = node->left->info;
+            
+            Symbol* value = generateMidRepresentation(node->right, list);
+            
+            addInstruction(list, OP_ASSIGN, value, NULL, dest);
+            
+            return dest;
+        }
+            // Agrega esto en tu switch temporalmente para que el árbol se recorra
+        case NODE_PROG:
+        case NODE_METHOD:
+        case NODE_BLOCK:
+        case NODE_SEQ:
+        case NODE_DECL:
+            generateMidRepresentation(node->left, list);
+            generateMidRepresentation(node->middle, list);
+            generateMidRepresentation(node->right, list);
+            return NULL;
+            
+    }
+    return NULL;
 }
