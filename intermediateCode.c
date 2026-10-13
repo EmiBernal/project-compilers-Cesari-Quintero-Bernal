@@ -211,7 +211,7 @@ Symbol* generateMidRepresentation(ASTNode* node, IntermediateList* list) {
             
             return dest;
         }
-            // Agrega esto en tu switch temporalmente para que el árbol se recorra
+            // metodos incompletos para poder compilar
         case NODE_PROG:
         case NODE_METHOD:
         case NODE_BLOCK:

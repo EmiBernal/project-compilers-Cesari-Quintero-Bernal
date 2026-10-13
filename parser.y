@@ -161,7 +161,7 @@ int main(int argc, char **argv){
     }
 
     if(yyparse() == 0 && semanticAnalysis(root) == 0){
-        //printAST(root, 0);
+        printAST(root, 0); //Deberiamos evaluar en cada caso si mostrarlo o no
         printf("Programa aceptado correctamente.\n");
 
         IntermediateList irList;
