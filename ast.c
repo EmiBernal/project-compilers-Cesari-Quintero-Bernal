@@ -387,7 +387,7 @@ void freeAST(ASTNode* node) {
     freeAST(node->right);
 
     //Liberacion del simbolo
-    if(node->info != NULL){
+    if(node->info != NULL && node->type != NODE_ID){
         free(node->info->name);
         free(node->info);
     }
