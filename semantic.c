@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include "semantic.h"
 #include "symbolTable.h"
 
@@ -128,6 +129,12 @@ static DataType checkExpr(ASTNode* n){
             } else {
                 //Si existe, la expresion toma el tipo del simbolo
                 t = s->type;
+                //Enlazo el nodo con el simbolo de la tabla
+                if (n->info != s){
+                    free(n->info->name);
+                    free(n->info);
+                    n->info = s;
+                }
             }
             break;
         }
@@ -223,6 +230,7 @@ static DataType checkExpr(ASTNode* n){
 
         default: break;
     }
+    n->evalType = t;
     return t;
 }
 
