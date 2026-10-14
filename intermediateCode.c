@@ -216,7 +216,7 @@ Symbol* generateMidRepresentation(ASTNode* node, IntermediateList* list) {
             //Si se mezclan int y float, los dos operandos pasan a float
             if(arg1 != NULL && arg2 != NULL && (arg1->type == TYPE_FLOAT || arg2->type == TYPE_FLOAT)){
                 arg1 = coerce(arg1, TYPE_FLOAT, list);
-                arg2 = coerce(arg1, TYPE_FLOAT, list);
+                arg2 = coerce(arg2, TYPE_FLOAT, list);
             }
             
             Symbol* temp = createTempSymbol(node->evalType);
