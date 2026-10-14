@@ -58,7 +58,9 @@ typedef enum {
     OP_JUMP_IF_FALSE,
     OP_JUMP_IF_TRUE,
     OP_LABEL,
-    OP_ASSIGN
+    OP_ASSIGN,
+    OP_ITOF, //Conversion Int To Float
+    OP_FTOI  //Conversion Float To Int
 } SymbolType;
 
 
