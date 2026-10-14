@@ -1,5 +1,0 @@
-void main() {
-    float x;
-    x = 3;
-    return;
-}
