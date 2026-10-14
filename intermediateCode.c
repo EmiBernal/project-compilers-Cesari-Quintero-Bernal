@@ -21,8 +21,6 @@ void addInstruction(IntermediateList* list, SymbolType opCode, Symbol* arg1, Sym
     instruction->arg2 = arg2;
     instruction->result = result;
 
-
-
     InstructionNode* node = (InstructionNode*) malloc(sizeof(InstructionNode));
     if(node == NULL){
         free(instruction);
@@ -146,6 +144,16 @@ static void printInstruction(Instruction* instruction){
             printOperand(instruction->result);
             printf(":");
             break;
+        case OP_ITOF:
+            printOperand(instruction->result);
+            printf(" = (float) ");
+            printOperand(instruction->arg1);
+            break;
+        case OP_FTOI:
+            printOperand(instruction->result);
+            printf(" = (int) ");
+            printOperand(instruction->arg1);
+            break;
         default:
             printOperand(instruction->result);
             printf(" = ");
@@ -166,6 +174,29 @@ void printIntermediateList(IntermediateList* list){
     
 }
 
+//Funcion para la conversion 
+static Symbol* coerce(Symbol* value, DataType target, IntermediateList* list){
+    //Si el valor es nulo o es del mismo valor que el target devuelvo ese mismo valor sin hacer coerce
+    if (value == NULL || value->type == target){
+        return value;
+    }
+
+    SymbolType conversion;
+    if(value->type == TYPE_INT && target == TYPE_FLOAT){
+        //IntToFloat
+        conversion = OP_ITOF;
+    }else if(value->type == TYPE_FLOAT && target == TYPE_INT){
+        //FloatToInt
+        conversion = OP_FTOI;
+    } else {
+        return value; //No hago nada
+    }
+
+    Symbol* temporal = createTempSymbol(target);
+    addInstruction(list, conversion, value, NULL, temporal);
+    return temporal;
+}
+
 Symbol* generateMidRepresentation(ASTNode* node, IntermediateList* list) {
     if (node == NULL) return NULL;
     switch (node->type) {
@@ -181,6 +212,12 @@ Symbol* generateMidRepresentation(ASTNode* node, IntermediateList* list) {
         case NODE_OP: {
             Symbol* arg1 = generateMidRepresentation(node->left, list);
             Symbol* arg2 = generateMidRepresentation(node->right, list);
+
+            //Si se mezclan int y float, los dos operandos pasan a float
+            if(arg1 != NULL && arg2 != NULL && (arg1->type == TYPE_FLOAT || arg2->type == TYPE_FLOAT)){
+                arg1 = coerce(arg1, TYPE_FLOAT, list);
+                arg2 = coerce(arg1, TYPE_FLOAT, list);
+            }
             
             Symbol* temp = createTempSymbol(node->evalType);
             addInstruction(list, node->info->kind, arg1, arg2, temp);
@@ -206,6 +243,8 @@ Symbol* generateMidRepresentation(ASTNode* node, IntermediateList* list) {
             Symbol* dest = node->left->info;
             
             Symbol* value = generateMidRepresentation(node->right, list);
+
+            value = coerce(value, dest->type, list);
             
             addInstruction(list, OP_ASSIGN, value, NULL, dest);
             
