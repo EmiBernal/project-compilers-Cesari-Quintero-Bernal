@@ -462,7 +462,7 @@ void freeIntermediateList(IntermediateList* list){
         free(node);
         node = next;
     }
-    
+
     //Libera las cabezas
     list->head = NULL;
     list->tail = NULL;
@@ -472,6 +472,7 @@ void freeIntermediateList(IntermediateList* list){
         free(createdSymbols[i]->name);
         free(createdSymbols[i]);
     }
+    free(createdSymbols);
     createdSymbols = NULL;
     createdCapacity = 0;
     createdCount = 0;
