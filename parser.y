@@ -170,6 +170,7 @@ int main(int argc, char **argv){
         generateMidRepresentation(root, &irList);
         printIntermediateList(&irList);
 
+        freeIntermediateList(&irList);
         freeAST(root);
     }
 

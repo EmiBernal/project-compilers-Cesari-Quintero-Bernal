@@ -1,9 +1,0 @@
-void main() {
-    int x;
-    int y;
-    int z;
-    
-    x = 10;
-    y = 5 * 2 + x;
-    z = -y;
-}
