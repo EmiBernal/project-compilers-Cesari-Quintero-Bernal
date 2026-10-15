@@ -1,0 +1,21 @@
+int suma(int a, int b) {
+    return a + b;
+}
+
+float mitad(float v) {
+    return v / 2;
+}
+
+void mostrar(int n) {
+    return;
+}
+
+void main() {
+    int x;
+    float f;
+    x = suma(1, 2);
+    f = mitad(x);
+    x = suma(suma(x, 1), 3);
+    mostrar(x);
+    return;
+}

@@ -1,0 +1,16 @@
+void nada() {
+    return;
+}
+
+void main() {
+    int x;
+    float f;
+    boolean b;
+    f = 1.5;
+    x = f % 2;
+    b = !x;
+    b = x == true;
+    x = nada();
+    x = main;
+    return;
+}

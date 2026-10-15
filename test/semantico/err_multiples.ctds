@@ -1,6 +1,7 @@
 void main() {
     int x;
     x = z + 1;
+    x = z + true;
     y = 2;
     return;
 }

@@ -5,6 +5,35 @@
 #define MAX_BYTES 16 
 static int tempCount = 0; 
 static int labelCount = 0;
+static Symbol* currentMethod = NULL;
+
+static Symbol** createdSymbols = NULL; //Arreglo de simbolos
+static int createdCount = 0;           //Elementos guardados en el arreglo
+static int createdCapacity = 0;        
+
+//Registro de los temporales y labels creados
+static void registerSymbol(Symbol* symbol){
+    
+    //Si llego a su limite, tengo que aumentar la capacidad o inicializar
+    if(createdCount == createdCapacity){
+        int newCapacity;
+        //No hay capacidad pq recien empieza
+        if(createdCapacity == 0){
+            newCapacity = 16;
+        }else{
+            newCapacity = createdCapacity * 2; //Duplico la capacidad
+        }
+        Symbol** newArray = (Symbol**) realloc(createdSymbols, newCapacity * sizeof(Symbol*)); //Le doy mas lugar, no lo borro
+        if(newArray == NULL){
+            return;
+        }
+        createdSymbols = newArray;
+        createdCapacity = newCapacity;
+    }
+    createdSymbols[createdCount] = symbol;
+    createdCount++;
+}
+
 
 void initIntermediateList(IntermediateList* list){
     list->head = NULL;
@@ -54,6 +83,7 @@ Symbol* createTempSymbol(DataType type){
     snprintf(buffer, MAX_BYTES, "t%d", tempCount);
     tempCount++;
     symbol->name = buffer;
+    registerSymbol(symbol);
 
     return symbol;
 }
@@ -73,6 +103,7 @@ Symbol* createLabelSymbol(void){
     snprintf(buffer, MAX_BYTES, "L%d", labelCount);
     labelCount++;
     symbol->name = buffer;
+    registerSymbol(symbol);
 
     return symbol;
 }
@@ -154,6 +185,36 @@ static void printInstruction(Instruction* instruction){
             printf(" = (int) ");
             printOperand(instruction->arg1);
             break;
+        case OP_BEGIN_FUNC:
+            printf("begin_func ");
+            printOperand(instruction->result);
+            break;
+        case OP_END_FUNC:
+            printf("end_func ");
+            printOperand(instruction->result);
+            break;
+        case OP_PARAM:
+            printf("param ");
+            printOperand(instruction->arg1); //arg1 pq no es resultado
+            break;
+        case OP_CALL:
+            //Caso metodo no void: t = call f
+            if(instruction->result != NULL){
+                printOperand(instruction->result);
+                printf(" = ");
+            }
+            //En ambos casos: call f
+            printf("call ");
+            printOperand(instruction->arg1);
+            break;
+        case OP_RETURN:
+            printf("return");
+            //En caso de devolver algo
+            if(instruction->arg1 != NULL){
+                printf(" ");
+                printOperand(instruction->arg1);
+            }
+            break;
         default:
             printOperand(instruction->result);
             printf(" = ");
@@ -171,7 +232,7 @@ void printIntermediateList(IntermediateList* list){
         printInstruction(current->instruction);
         current = current->next;
     }
-    
+
 }
 
 //Funcion para la conversion 
@@ -210,6 +271,28 @@ Symbol* generateMidRepresentation(ASTNode* node, IntermediateList* list) {
         //operacion binarias
 
         case NODE_OP: {
+            //&& y || con evaluacion de corto circuito: el segundo operando solo se evalua si hace falta
+            if(node->info->kind == OP_AND || node->info->kind == OP_OR){
+                Symbol* temp = createTempSymbol(TYPE_BOOL);
+                Symbol* labelEnd = createLabelSymbol();
+                Symbol* left = generateMidRepresentation(node->left, list);
+                addInstruction(list, OP_ASSIGN, left, NULL, temp);
+                SymbolType jump;
+                if(node->info->kind == OP_AND){
+                    jump = OP_JUMP_IF_FALSE; //False para &&
+                }else{
+                    jump = OP_JUMP_IF_TRUE; //True para ||
+                } 
+                addInstruction(list, jump, temp, NULL, labelEnd);
+                //Si se cumple la condicion anterior, saltea el lado derecho
+
+                //Si no cumple, hacemos el lado derecho
+                Symbol* right = generateMidRepresentation(node->right, list);
+                addInstruction(list, OP_ASSIGN, right, NULL, temp);
+                addInstruction(list, OP_LABEL, NULL, NULL, labelEnd);
+                return temp;
+            }
+
             Symbol* arg1 = generateMidRepresentation(node->left, list);
             Symbol* arg2 = generateMidRepresentation(node->right, list);
 
@@ -250,9 +333,8 @@ Symbol* generateMidRepresentation(ASTNode* node, IntermediateList* list) {
             
             return dest;
         }
-            // metodos incompletos para poder compilar
+        // nodos estructurales: no generan instrucciones, solo recorren a sus hijos en orden
         case NODE_PROG:
-        case NODE_METHOD:
         case NODE_BLOCK:
         case NODE_SEQ:
         case NODE_DECL:
@@ -260,7 +342,138 @@ Symbol* generateMidRepresentation(ASTNode* node, IntermediateList* list) {
             generateMidRepresentation(node->middle, list);
             generateMidRepresentation(node->right, list);
             return NULL;
+
+        case NODE_IF: {
+            //Genero la condicion ya que devuelve el simbolo donde quedo el resultado
+            Symbol* condition = generateMidRepresentation(node->left, list);
+
+            if(node->right == NULL){
+                //if sin else
+                Symbol* labelEnd = createLabelSymbol();
+                addInstruction(list, OP_JUMP_IF_FALSE, condition, NULL, labelEnd);
+                generateMidRepresentation(node->middle, list);
+                addInstruction(list, OP_LABEL, NULL, NULL, labelEnd);
+            } else {
+                //if con else
+                Symbol* labelElse = createLabelSymbol();
+                Symbol* labelEnd = createLabelSymbol();
+                addInstruction(list, OP_JUMP_IF_FALSE, condition, NULL, labelElse);
+                generateMidRepresentation(node->middle, list);
+                //Agrego esta instruccion pq ya vi el then
+                addInstruction(list, OP_JUMP, NULL, NULL, labelEnd);
+                //Marco la label del else
+                addInstruction(list, OP_LABEL, NULL, NULL, labelElse);
+                generateMidRepresentation(node->right, list);
+                addInstruction(list, OP_LABEL, NULL, NULL, labelEnd);
+            }
+            return NULL;
+        }
             
+        case NODE_WHILE: {
+            Symbol* labelStart = createLabelSymbol();
+            Symbol* labelEnd = createLabelSymbol();
+            //Inicio del while
+            addInstruction(list, OP_LABEL, NULL, NULL, labelStart);
+            Symbol* condition = generateMidRepresentation(node->left, list);
+            addInstruction(list, OP_JUMP_IF_FALSE, condition, NULL, labelEnd);
+            //Recursivamente va generando 
+            generateMidRepresentation(node->right, list);
+            addInstruction(list, OP_JUMP, NULL, NULL, labelStart);
+            addInstruction(list, OP_LABEL, NULL, NULL, labelEnd);
+            return NULL;
+        }
+            
+        // metodos y llamadas
+        case NODE_METHOD:
+            currentMethod = node->info;
+            addInstruction(list, OP_BEGIN_FUNC, NULL, NULL, node->info);
+            generateMidRepresentation(node->right, list);
+            addInstruction(list, OP_END_FUNC, NULL, NULL, node->info);
+            currentMethod = NULL;
+            return NULL;
+
+        // los parametros no generan instrucciones: se declaran al marcar el inicio del metodo
+        case NODE_PARAM:
+            return NULL;
+
+        case NODE_CALL: {
+            Symbol* method = node->info;
+            //Cuento los argumentos para guardar espacio
+            int count = 0;
+            for(ASTNode* arg = node->left; arg != NULL; arg = arg->right){
+                count++;
+            }
+            Symbol** values = NULL; //Arreglo de punteros
+            if(count > 0){
+                //Guardo lugar por cada uno
+                values = (Symbol**) malloc(count * sizeof(Symbol*));
+                if(values == NULL){
+                    return NULL;
+                }
+            }
+            ASTNode* arg = node->left; //Parametros reales
+            ASTNode* param = method->params; //Parametros formales           
+            
+            for(int i = 0; i < count; i++){
+                Symbol* value = generateMidRepresentation(arg->left, list);
+                values[i] = coerce(value, param->left->info->type, list);
+                //paso al siguiente
+                arg = arg->right;
+                param = param->right;
+            }
+
+            //Muestro los parametros antes del call
+             for(int i = 0; i < count; i++){
+                addInstruction(list, OP_PARAM, values[i], NULL, NULL);
+            }
+            free(values);
+
+            //Si el metodo devuelve algo
+            Symbol* result = NULL;
+            if(method->type != TYPE_VOID){
+                result = createTempSymbol(method->type);
+            }
+            addInstruction(list, OP_CALL, method, NULL, result);
+            return result;
+        }
+            
+        case NODE_RETURN: {
+            Symbol* value = NULL;
+            if(node->left != NULL){
+                value = generateMidRepresentation(node->left, list);
+                //Convierto al tipo de retorno del metodo
+                value = coerce(value, currentMethod->type, list);
+            }
+            addInstruction(list, OP_RETURN, value, NULL, NULL);
+            return NULL;
+        }
     }
     return NULL;
+}
+
+//Libera lista de instrucciones, labels, temporales
+void freeIntermediateList(IntermediateList* list){
+    InstructionNode* node = list->head; //Nodo nuevo que apunta a la cabeza
+    
+    //Mientras no llegue al final de la lista, libera 
+    while(node != NULL){
+        InstructionNode* next = node->next;
+        free(node->instruction);
+        free(node);
+        node = next;
+    }
+
+    //Libera las cabezas
+    list->head = NULL;
+    list->tail = NULL;
+
+    //Libero la lista de temporales y labels
+    for(int i = 0; i < createdCount; i++){
+        free(createdSymbols[i]->name);
+        free(createdSymbols[i]);
+    }
+    free(createdSymbols);
+    createdSymbols = NULL;
+    createdCapacity = 0;
+    createdCount = 0;
 }

@@ -1,0 +1,11 @@
+void main() {
+    int x;
+    x = 1;
+    if (x) {
+        x = 2;
+    }
+    while (x + 1) {
+        x = 0;
+    }
+    return;
+}
