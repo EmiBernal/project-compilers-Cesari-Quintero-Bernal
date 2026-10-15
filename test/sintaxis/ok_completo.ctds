@@ -1,0 +1,19 @@
+int g;
+
+float mitad(float v) {
+    return v / 2.0;
+}
+
+void main() {
+    int x, y;
+    boolean b;
+    float f;
+    x = 1;
+    f = mitad(1.5);
+    b = !(x < 2) || x == 1 && true;
+    y = -x % 3;
+    if (b) { x = 2; } else { ; }
+    while (x > 0) { x = x - 1; }
+    { int z; z = x; }
+    return;
+}

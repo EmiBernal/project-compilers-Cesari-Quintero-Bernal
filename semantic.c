@@ -243,6 +243,12 @@ static DataType checkCall(ASTNode* n){
         semanticError("llamada a metodo no declarado '%s'", n->line, n->info->name);
         return TYPE_ERROR;
     }
+    //Enlazo el nodo con el simbolo de la tabla y libero el provisorio
+    if(n->info != f){
+        free(n->info->name);
+        free(n->info);
+        n->info = f;
+    }
     //Obtengo los parametros y las expresiones para luego comparar
     ASTNode* parameters = f->params;
     ASTNode* expresions = n->left;

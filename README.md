@@ -16,6 +16,6 @@ Integrantes
 - flex lexer.l
 - bison -d parser.y
 - gcc lex.yy.c parser.tab.c ast.c semantic.c symbolTable.c intermediateCode.c -o ctds_parser
-- ./ctds_parser test/nombreDelPrograma.ctds (por ahora es la única opción)
+- ./ctds_parser test/<carpeta>/nombreDelPrograma.ctds (carpetas: sintaxis, semantico, intermedio)
 
 

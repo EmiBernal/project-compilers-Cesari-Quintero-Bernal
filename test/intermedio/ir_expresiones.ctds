@@ -1,0 +1,9 @@
+void main() {
+    int x, y;
+    boolean b;
+    x = 1;
+    y = x + 3 * 2 - 4 / 2 % 3;
+    y = -(x + y);
+    b = !(x < y);
+    return;
+}
