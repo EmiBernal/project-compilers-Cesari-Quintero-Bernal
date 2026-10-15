@@ -7,6 +7,34 @@ static int tempCount = 0;
 static int labelCount = 0;
 static Symbol* currentMethod = NULL;
 
+static Symbol** createdSymbols = NULL; //Arreglo de simbolos
+static int createdCount = 0;           //Elementos guardados en el arreglo
+static int createdCapacity = 0;        
+
+//Registro de los temporales y labels creados
+static void registerSymbol(Symbol* symbol){
+    
+    //Si llego a su limite, tengo que aumentar la capacidad o inicializar
+    if(createdCount == createdCapacity){
+        int newCapacity;
+        //No hay capacidad pq recien empieza
+        if(createdCapacity == 0){
+            newCapacity = 16;
+        }else{
+            newCapacity = createdCapacity * 2; //Duplico la capacidad
+        }
+        Symbol** newArray = (Symbol**) realloc(createdSymbols, newCapacity * sizeof(Symbol*)); //Le doy mas lugar, no lo borro
+        if(newArray == NULL){
+            return;
+        }
+        createdSymbols = newArray;
+        createdCapacity = newCapacity;
+    }
+    createdSymbols[createdCount] = symbol;
+    createdCount++;
+}
+
+
 void initIntermediateList(IntermediateList* list){
     list->head = NULL;
     list->tail = NULL;
@@ -55,6 +83,7 @@ Symbol* createTempSymbol(DataType type){
     snprintf(buffer, MAX_BYTES, "t%d", tempCount);
     tempCount++;
     symbol->name = buffer;
+    registerSymbol(symbol);
 
     return symbol;
 }
@@ -74,6 +103,7 @@ Symbol* createLabelSymbol(void){
     snprintf(buffer, MAX_BYTES, "L%d", labelCount);
     labelCount++;
     symbol->name = buffer;
+    registerSymbol(symbol);
 
     return symbol;
 }
@@ -419,4 +449,30 @@ Symbol* generateMidRepresentation(ASTNode* node, IntermediateList* list) {
         }
     }
     return NULL;
+}
+
+//Libera lista de instrucciones, labels, temporales
+void freeIntermediateList(IntermediateList* list){
+    InstructionNode* node = list->head; //Nodo nuevo que apunta a la cabeza
+    
+    //Mientras no llegue al final de la lista, libera 
+    while(node != NULL){
+        InstructionNode* next = node->next;
+        free(node->instruction);
+        free(node);
+        node = next;
+    }
+    
+    //Libera las cabezas
+    list->head = NULL;
+    list->tail = NULL;
+
+    //Libero la lista de temporales y labels
+    for(int i = 0; i < createdCount; i++){
+        free(createdSymbols[i]->name);
+        free(createdSymbols[i]);
+    }
+    createdSymbols = NULL;
+    createdCapacity = 0;
+    createdCount = 0;
 }
