@@ -1,0 +1,15 @@
+int cont;
+
+boolean marcar() {
+    cont = cont + 1;
+    return true;
+}
+
+void main() {
+    boolean b;
+    cont = 0;
+    b = false && marcar();
+    b = true || marcar();
+    b = (cont < 1) && marcar() || false;
+    return;
+}

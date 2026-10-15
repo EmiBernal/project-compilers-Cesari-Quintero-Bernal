@@ -60,7 +60,12 @@ typedef enum {
     OP_LABEL,
     OP_ASSIGN,
     OP_ITOF, //Conversion Int To Float
-    OP_FTOI  //Conversion Float To Int
+    OP_FTOI,  //Conversion Float To 
+    OP_BEGIN_FUNC, 
+    OP_END_FUNC,
+    OP_PARAM, 
+    OP_CALL, //call f o t = call f
+    OP_RETURN //Para el retorno
 } SymbolType;
 
 
