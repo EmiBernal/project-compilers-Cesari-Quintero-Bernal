@@ -1,5 +1,5 @@
 void main() {
-    float x;
-    x = 3;
+    int y
+    y = 4;
     return;
 }

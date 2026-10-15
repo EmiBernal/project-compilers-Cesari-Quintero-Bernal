@@ -1,0 +1,15 @@
+int f() {
+    return;
+}
+
+int g() {
+    return true;
+}
+
+void h() {
+    return 1;
+}
+
+void main() {
+    return;
+}

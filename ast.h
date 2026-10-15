@@ -36,6 +36,8 @@ typedef enum {
     CONSTANT,
     FUNCTION,
     PARAM,
+    LABEL,
+    TEMPORARY,
     //operadores
     OP_ADD,
     OP_MUL,
@@ -51,7 +53,19 @@ typedef enum {
     OP_OR,
     //unarios
     OP_UMINUS,
-    OP_NEG //negacion
+    OP_NEG, //negacion
+    OP_JUMP,
+    OP_JUMP_IF_FALSE,
+    OP_JUMP_IF_TRUE,
+    OP_LABEL,
+    OP_ASSIGN,
+    OP_ITOF, //Conversion Int To Float
+    OP_FTOI,  //Conversion Float To 
+    OP_BEGIN_FUNC, 
+    OP_END_FUNC,
+    OP_PARAM, 
+    OP_CALL, //call f o t = call f
+    OP_RETURN //Para el retorno
 } SymbolType;
 
 
