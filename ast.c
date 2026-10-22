@@ -31,6 +31,7 @@ static Symbol* newSymbol(SymbolType kind, DataType type, char* name) {
     sym->name = name;
     sym->global = true; 
     sym->params = NULL; 
+    sym->offset = 0; /* significa que no esta asignado */
 
     return sym;
 }

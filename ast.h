@@ -78,7 +78,8 @@ typedef struct Symbol{
     char* name;         /*Id del simbolo */
     DataType type;      
     struct ASTNode* params;
-    bool global;                                  
+    bool global; 
+    int offset; /* guardar posicion en la pila */                                 
 } Symbol;
 
 
