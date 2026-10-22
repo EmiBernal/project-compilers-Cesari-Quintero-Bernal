@@ -9,6 +9,8 @@
 #include "ast.h"
 #include "semantic.h"
 #include "intermediateCode.h"
+#include "assemblyGenerator.h"
+
 
 
 extern FILE *yyin;
@@ -169,6 +171,13 @@ int main(int argc, char **argv){
         
         generateMidRepresentation(root, &irList);
         printIntermediateList(&irList);
+        FILE* assemblyFile = fopen("output.s", "w");
+        if(assemblyFile == NULL){
+            fprintf(stderr, "No se pudo crear output.s\n");
+        } else {
+            generateAssembly(&irList, assemblyFile);
+            fclose(assemblyFile);
+        }
 
         freeIntermediateList(&irList);
         freeAST(root);
