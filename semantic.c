@@ -40,6 +40,7 @@ static void checkNode(ASTNode* n){
 
         case NODE_DECL:
             case NODE_PARAM: {
+                n->info->global = (currentMethod == NULL); // si no estoy dentro de un metodo, la declaracion es global, si estoy dentro de uno es parametro o local
                 bool newParam = insertSymbol(&table, n->info);
                 
                 //Si ya fue declarado previamente
