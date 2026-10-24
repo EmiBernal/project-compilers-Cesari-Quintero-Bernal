@@ -79,6 +79,22 @@ static void writeEpilogue(FILE* out){
     fprintf(out, "    ret\n");
 }
 
+void writeOperand(FILE* out, Symbol* symbol){
+    if (symbol->kind == CONSTANT) {
+
+        if (symbol->type == TYPE_BOOL){
+            fprintf(out, "$%d", symbol->value.bval ? 1 : 0);            
+        }else{
+            fprintf(out, "$%d", symbol->value.ival);
+        }
+        
+    } else if (symbol->kind == VAR && symbol->global) {
+        fprintf(out, "%s(%%rip)", symbol->name);
+    } else {
+        fprintf(out, "%d(%%rbp)", symbol->offset);
+    }
+}
+
 void generateAssembly(IntermediateList* list, FILE* out){
     InstructionNode* node = list->head;
     while(node != NULL){
