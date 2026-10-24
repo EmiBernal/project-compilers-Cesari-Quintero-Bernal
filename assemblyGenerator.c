@@ -96,13 +96,13 @@ void writeOperand(FILE* out, Symbol* symbol){
 }
 
 static void loadOperand(FILE* out, Symbol* symbol, const char* reg){
-    fprintf(out, "   movl ");
+    fprintf(out, "    movl ");
     writeOperand(out, symbol);
     fprintf(out, ", %s\n", reg);
 }
 
 static void storeResult(FILE* out,const char* reg, Symbol* symbol){
-    fprintf(out, "   movl %s, ", reg);
+    fprintf(out, "    movl %s, ", reg);
     writeOperand(out, symbol);
     fprintf(out, "\n");
 }
@@ -142,9 +142,55 @@ void translateInstruction(FILE* out, Instruction* instruction){
             fprintf(out, "    cltd\n");
             fprintf(out, "    idivl %%ecx\n");
             storeResult(out, "%eax", instruction->result);
-
-        // TODO: storeResult del cociente (%eax)
             break;
+
+        case OP_MOD:
+            loadOperand(out, instruction->arg1, "%eax");
+            loadOperand(out, instruction->arg2, "%ecx");  
+            fprintf(out, "    cltd\n");
+            fprintf(out, "    idivl %%ecx\n");
+            storeResult(out, "%edx", instruction->result);
+            break;
+        
+        case OP_LT:
+            loadOperand(out, instruction->arg1, "%eax");
+            loadOperand(out, instruction->arg2, "%ecx");
+            fprintf(out, "    cmpl %%ecx, %%eax\n");
+            fprintf(out, "    setl %%al\n");
+            fprintf(out, "    movzbl %%al, %%eax\n");
+            storeResult(out, "%eax", instruction->result);
+            break;
+
+        case OP_GT:
+            loadOperand(out, instruction->arg1, "%eax");
+            loadOperand(out, instruction->arg2, "%ecx");
+            fprintf(out, "    cmpl %%ecx, %%eax\n");
+            fprintf(out, "    setg %%al\n");
+            fprintf(out, "    movzbl %%al, %%eax\n");
+            storeResult(out, "%eax", instruction->result);
+            break;  
+
+        case OP_EQ:
+            loadOperand(out, instruction->arg1, "%eax");
+            loadOperand(out, instruction->arg2, "%ecx");
+            fprintf(out, "    cmpl %%ecx, %%eax\n");
+            fprintf(out, "    sete %%al\n");
+            fprintf(out, "    movzbl %%al, %%eax\n");
+            storeResult(out, "%eax", instruction->result);
+            break;
+
+        case OP_UMINUS:
+            loadOperand(out, instruction->arg1, "%eax");
+            fprintf(out, "    negl %%eax\n");
+            storeResult(out, "%eax", instruction->result);
+            break;
+
+        case OP_NEG:
+            loadOperand(out, instruction->arg1, "%eax");
+            fprintf(out, "    xorl $1, %%eax\n");
+            // TODO: xorl $1, %eax
+            storeResult(out, "%eax", instruction->result);
+            break;                  
 
         default:
             break;
