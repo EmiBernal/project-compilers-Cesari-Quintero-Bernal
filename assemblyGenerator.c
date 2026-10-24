@@ -95,6 +95,18 @@ void writeOperand(FILE* out, Symbol* symbol){
     }
 }
 
+static void loadOperand(FILE* out, Symbol* symbol, const char* reg){
+    fprintf(out, "   movl ");
+    writeOperand(out, symbol);
+    fprintf(out, ", %s\n", reg);
+}
+
+static void storeResult(FILE* out, Symbol* symbol, const char* reg){
+    fprintf(out, "   movl %s, ", reg);
+    writeOperand(out, symbol);
+    fprintf(out, "\n");
+}
+
 void generateAssembly(IntermediateList* list, FILE* out){
     InstructionNode* node = list->head;
     while(node != NULL){
