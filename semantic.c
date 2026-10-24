@@ -267,6 +267,13 @@ static DataType checkCall(ASTNode* n){
     if(parameters != NULL || expresions != NULL){
         semanticError("cantidad de argumentos incorrecta en la llamada a '%s'", n->line, f->name);
     }
+
+    if (n->info != f){
+    free(n->info->name);
+    free(n->info);
+    n->info = f;
+    }
+
     return f->type;
 } 
 
