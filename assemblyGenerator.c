@@ -101,10 +101,54 @@ static void loadOperand(FILE* out, Symbol* symbol, const char* reg){
     fprintf(out, ", %s\n", reg);
 }
 
-static void storeResult(FILE* out, Symbol* symbol, const char* reg){
+static void storeResult(FILE* out,const char* reg, Symbol* symbol){
     fprintf(out, "   movl %s, ", reg);
     writeOperand(out, symbol);
     fprintf(out, "\n");
+}
+
+void translateInstruction(FILE* out, Instruction* instruction){
+    switch(instruction->opCode){
+
+        case OP_ASSIGN:
+            loadOperand(out, instruction->arg1, "%eax");
+            storeResult(out, "%eax", instruction->result);
+            break;
+
+        case OP_ADD:
+            loadOperand(out, instruction->arg1, "%eax");
+            loadOperand(out, instruction->arg2, "%ecx");
+            fprintf(out, "    addl %%ecx, %%eax\n");
+            storeResult(out, "%eax", instruction->result);
+            break;
+
+        case OP_SUB:
+            loadOperand(out, instruction->arg1, "%eax");
+            loadOperand(out, instruction->arg2, "%ecx");
+            fprintf(out, "    subl %%ecx, %%eax\n");
+            storeResult(out, "%eax", instruction->result);
+            break;
+
+        case OP_MUL:
+            loadOperand(out, instruction->arg1, "%eax");
+            loadOperand(out, instruction->arg2, "%ecx");
+            fprintf(out, "    imull %%ecx, %%eax\n");
+            storeResult(out, "%eax", instruction->result);
+            break;
+
+        case OP_DIV:
+            loadOperand(out, instruction->arg1, "%eax");
+            loadOperand(out, instruction->arg2, "%ecx");            
+            fprintf(out, "    cltd\n");
+            fprintf(out, "    idivl %%ecx\n");
+            storeResult(out, "%eax", instruction->result);
+
+        // TODO: storeResult del cociente (%eax)
+            break;
+
+        default:
+            break;
+    }
 }
 
 void generateAssembly(IntermediateList* list, FILE* out){
@@ -115,6 +159,8 @@ void generateAssembly(IntermediateList* list, FILE* out){
             writePrologue(out, node->instruction->result, frameSize);
         } else if(node->instruction->opCode == OP_END_FUNC) {
             writeEpilogue(out);
+        }else {
+            translateInstruction(out, node->instruction);   // <-- nuevo
         }
         node = node->next;
     }
