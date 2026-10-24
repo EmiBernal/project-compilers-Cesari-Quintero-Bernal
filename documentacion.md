@@ -268,3 +268,29 @@ b = t1
 #### 3.3.1. Generar vs. ejecutar
 
 Hay que distinguir entre *generar* y *ejecutar*. El compilador siempre genera el código del operando derecho, pero como queda después del salto, en tiempo de ejecución solo corre si no se saltó. Si se ejecuta, el valor del lado derecho reemplaza al del izquierdo en el temporal: en `true && x` el resultado es `x`, y en `false || x` también.
+
+## 4. Decisiones de diseño: Generador de código objeto
+
+### 4.1. Uso de registros y convención de operandos
+
+#### 4.1.1. Sintaxis y tamaño de los datos
+
+El código objeto se genera de manera que el operando de la derecha (el segundo) es el destino de la instrucción. Las operaciones se hacen sobre enteros de 32 bits (instrucciones con sufijo `l` y registros `%eax`, `%ecx`). Los booleanos se representan como enteros de 32 bits con valores 0 (`false`) y 1 (`true`).
+
+Por ejemplo, `addl %ecx, %eax` calcula `eax = eax + ecx`: el resultado queda en `%eax`.
+
+#### 4.1.2. Convención para instrucciones de tres direcciones
+
+Para la instrucción `t1 = a + t0` se genera:
+
+```asm
+movl -4(%rbp), %eax      
+movl -12(%rbp), %ecx    
+addl %ecx, %eax      (resultado en eax)
+movl %eax, -16(%rbp)     
+```
+
+#### 4.1.3. Observaciones
+
+- **`%ecx` es un registro auxiliar** que no se conserva entre llamadas, por lo que se lo puede usar libremente sin tener que guardarlo.
+- **Los valores no se mantienen en registros entre instrucciones.** Cada instrucción del código intermedio carga sus operandos desde memoria (pila o `.data`) y guarda su resultado en memoria. Es menos eficiente, pero simplifica el generador y evita implementar una asignación de registros.
