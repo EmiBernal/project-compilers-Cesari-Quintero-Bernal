@@ -1,0 +1,8 @@
+int main() {
+    int x, y;
+    x = 3;
+    y = 0;
+    if (x < 5 && x > 1) { y = 10; } else { y = 20; }
+    while (x < 6) { x = x + 1; y = y + 1; }
+    return y;
+}
