@@ -238,6 +238,8 @@ void generateAssembly(IntermediateList* list, FILE* out){
         }
         node = node->next;
     }
+
+    fprintf(out, "    .section .note.GNU-stack,\"\",@progbits\n");
 }
 
 
