@@ -209,7 +209,15 @@ void translateInstruction(FILE* out, Instruction* instruction){
             loadOperand(out, instruction->arg1, "%eax");
             fprintf(out, "    cmpl $0, %%eax\n");
             fprintf(out, "    jne .%s\n", instruction->result->name);
-            break;    
+            break;
+
+        case OP_RETURN:
+            if(instruction->arg1 != NULL){
+                loadOperand(out, instruction->arg1, "%eax");
+            }
+
+            writeEpilogue(out);
+            break;
 
         default:
             break;
@@ -223,6 +231,7 @@ void generateAssembly(IntermediateList* list, FILE* out){
             int frameSize = assignMethodSlots(node);
             writePrologue(out, node->instruction->result, frameSize);
         } else if(node->instruction->opCode == OP_END_FUNC) {
+            fprintf(out, "    xorl %%eax, %%eax\n");
             writeEpilogue(out);
         }else {
             translateInstruction(out, node->instruction);   // <-- nuevo
