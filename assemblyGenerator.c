@@ -188,9 +188,28 @@ void translateInstruction(FILE* out, Instruction* instruction){
         case OP_NEG:
             loadOperand(out, instruction->arg1, "%eax");
             fprintf(out, "    xorl $1, %%eax\n");
-            // TODO: xorl $1, %eax
             storeResult(out, "%eax", instruction->result);
-            break;                  
+            break;
+            
+        case OP_LABEL:
+            fprintf(out, ".%s:\n", instruction->result->name);
+            break;
+
+        case OP_JUMP:
+            fprintf(out, "    jmp .%s\n", instruction->result->name);
+            break;
+
+        case OP_JUMP_IF_FALSE:
+            loadOperand(out, instruction->arg1, "%eax");
+            fprintf(out, "    cmpl $0, %%eax\n");
+            fprintf(out, "    je .%s\n", instruction->result->name);
+            break;
+
+        case OP_JUMP_IF_TRUE:
+            loadOperand(out, instruction->arg1, "%eax");
+            fprintf(out, "    cmpl $0, %%eax\n");
+            fprintf(out, "    jne .%s\n", instruction->result->name);
+            break;    
 
         default:
             break;
