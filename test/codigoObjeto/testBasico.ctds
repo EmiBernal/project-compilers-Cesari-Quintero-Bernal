@@ -1,0 +1,6 @@
+int main() {
+    int x, y;
+    x = 7 - 2;
+    y = -x * 3 + 10 / 4 % 3;
+    return y;
+}
