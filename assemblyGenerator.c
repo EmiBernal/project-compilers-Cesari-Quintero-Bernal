@@ -7,8 +7,8 @@ static void assignStackSlot(Symbol* symbol, int* frameSize);
 static void assignInstructionSlots(Instruction* instruction, int* frameSize);
 static int assignMethodSlots(InstructionNode* beginNode);
 static void assignParameterSlots(Symbol* method, int* frameSize);
-static void writePrologue(FILE* out, Symbol* method, int frameSize);
 static int alignFrameSize(int frameSize);
+static void writePrologue(FILE* out, Symbol* method, int frameSize);
 static void writeEpilogue(FILE* out);
 
 static bool needsStackSlot(Symbol* symbol){
