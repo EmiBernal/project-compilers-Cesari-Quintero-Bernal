@@ -294,3 +294,61 @@ movl %eax, -16(%rbp)
 
 - **`%ecx` es un registro auxiliar** que no se conserva entre llamadas, por lo que se lo puede usar libremente sin tener que guardarlo.
 - **Los valores no se mantienen en registros entre instrucciones.** Cada instrucción del código intermedio carga sus operandos desde memoria (pila o `.data`) y guarda su resultado en memoria. Es menos eficiente, pero simplifica el generador y evita implementar una asignación de registros.
+
+### 4.2. Funciones auxiliares
+
+#### 4.2.1. `needsStackSlot`
+
+ Indica si el símbolo necesita un lugar en la pila: una variable local `VAR` no global, un parámetro `PARAM` o un temporal `TEMPORARY`. Las globales, constantes, etiquetas y métodos no lo necesitan.
+
+#### 4.2.2. `assignStackSlot`
+
+Le asigna al símbolo su lugar en el marco de la función. Suma 4 bytes (`INT_SIZE_BYTES`) a `frameSize` y guarda en `símbolo->offset` el valor negativo correspondiente.
+Si el símbolo ya tiene `offset` distinto de 0 o no necesita lugar entonces no hace nada.
+
+#### 4.2.3. `assignInstructionSlots`
+
+Aplica `assignStackSlot` a los operandos de una instrucción (`arg1`, `arg2` y `result`), saltando los que son `NULL`.
+
+#### 4.2.4. `assignParameterSlots`
+
+Recorre la lista de parámetros de un método(`method->params`) y les asigna su lugar primero, antes que a las demás variables.
+
+#### 4.2.5. `assignMethodSlots`
+
+Calcula el tamaño del marco de un método. Asigna los lugares de los parámetros y después recorre las instrucciones desde `BEGIN_FUNC` hasta `END_FUNC`. Devuelve el tamaño total en bytes, sin alinear.
+
+#### 4.2.6. `alignFrameSize`
+
+Redondea el tamaño del marco hacia arriba al próximo múltiplo de 16 (`STACK_ALIGNMENT_BYTES`) por convencion al hacer un `call`. 
+
+#### 4.2.6. `writePrologue` y `writeEpilogue`
+
+- **`writePrologue` Describe el comienzo de un método: `.text`, `.globl nombre`, la etiqueta `nombre:`, `pushq %rbp`, `movq %rsp, %rbp` y `subq $tamañoAlineado, %rsp`, que reserva el espacio para las variables. 
+- **`writeEpilogue` EDescribe el cierre de un método: `leave` (restaura `%rsp` y `%rbp`) y `ret`.
+
+
+#### 4.2.7. `loadOperand` y `storeResult`
+
+Las instrucciones aritméticas de x86 necesitan que al menos uno de sus operandos esté en un registro, y no admiten dos posiciones de memoria a la vez. Por eso cada instrucción del código intermedio se traduce cargando sus operandos en registros, operando, y guardando el resultado en memoria. Para no repetir esos pasos en cada caso de `translateInstruction`, se encapsularon en dos funciones:
+
+- **`loadOperand(out, símbolo, registro)`** carga un operando en un registro. Escribe `movl operando, registro`, donde el operando lo escribe `writeOperand` según dónde viva: una constante (`$5`), una variable global (`nombre(%rip)`) o una variable local, parámetro o temporal (`offset(%rbp)`).
+- **`storeResult(out, registro, símbolo)`** hace lo inverso: guarda un registro en el destino de la instrucción. Escribe `movl registro, destino`.
+
+Con ellas, cada caso de `translateInstruction` queda con la misma forma. Por ejemplo, la suma:
+
+```c
+loadOperand(out, instruction->arg1, "%eax");        // movl a, %eax
+loadOperand(out, instruction->arg2, "%ecx");        // movl b, %ecx
+fprintf(out, "    addl %%ecx, %%eax\n");            // addl %ecx, %eax
+storeResult(out, "%eax", instruction->result);      // movl %eax, resultado
+```
+#### 4.2.8. `writeOperand`
+writeOperand escribe en el archivo de salida cómo se accede a un operando del código intermedio. Es la única función que sabe dónde vive cada valor, y la usan `loadOperand` y `storeResult`. Según el símbolo, hay tres casos:
+
+- ** `Constantes`: Se escriben como un valor inmediato, con $ adelante. Los enteros usan value.ival, y los booleanos value.bval, que se escribe como 1 para true y 0 para false.
+
+- ** `Variables globales`: Viven en la sección .data y se acceden por su nombre, relativo al registro %rip, que apunta a la instrucción que se está ejecutando.
+
+- ** `Locales, parámetros y temporales`: Viven en la pila de la función, y se acceden por su distancia al registro %rbp, que marca la base del marco. El offset es un número negativo que le asigna assignMethodSlots a cada símbolo al comenzar la función (la primera variable recibe -4, la siguiente -8, etc).
+
