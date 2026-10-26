@@ -1,0 +1,8 @@
+// Llamada anidada: el argumento es otra llamada. Resultado esperado: 12
+int dbl(int x) {
+    return x * 2;
+}
+
+int main() {
+    return dbl(dbl(3));
+}
