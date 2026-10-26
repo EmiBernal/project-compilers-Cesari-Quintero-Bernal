@@ -66,7 +66,13 @@ static void writeDataSection(FILE* out, IntermediateList* list){
                     //Duplico capacidad
                     capacity = capacity * 2;
                 }
-                globals = realloc(globals, capacity * sizeof(Symbol*));
+                Symbol** aux = realloc(globals, capacity * sizeof(Symbol*));
+                if(aux == NULL){
+                    fprintf(stderr, "Error: no hay memoria para las variables globales\n");
+                    free(globals);
+                    return;
+                }
+                globals = aux;
             }
             globals[count] = symbol;
             count++;
