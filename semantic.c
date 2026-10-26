@@ -13,6 +13,7 @@ static void checkNode(ASTNode* n);
 static DataType checkExpr(ASTNode* n);
 static DataType checkCall(ASTNode* n);
 static bool isNumeric(DataType type);
+static bool isZeroLiteral(ASTNode* n);
 static bool areCompatible(DataType expected, DataType received);
 static DataType arithmeticResultType(DataType left, DataType right);
 
@@ -24,6 +25,10 @@ static void semanticError(const char* message, int line,...) {
     fprintf(stderr, "\n");
     va_end(args);
     errors++;          
+}
+
+static bool isZeroLiteral(ASTNode* n){
+    return n != NULL && n->type == NODE_NUM && n->info->value.ival == 0;
 }
 
 // declaraciones, sentencias, bloques, listas
@@ -164,6 +169,11 @@ static DataType checkExpr(ASTNode* n){
                     if(t == TYPE_ERROR && left != TYPE_ERROR && right != TYPE_ERROR){
                         semanticError("Operacion aritmetica con tipos incompatibles", n->line);
                     }
+
+                    if(n->info->kind == OP_DIV && isZeroLiteral(n->right)){
+                        semanticError("Division por cero", n->line);
+                    }
+
                     break;
 
                 //Resto: solo entre enteros
@@ -175,6 +185,11 @@ static DataType checkExpr(ASTNode* n){
                             t = TYPE_INT;
                         }
                     }
+
+                    if(isZeroLiteral(n->right)){
+                        semanticError("Modulo por cero", n->line);
+                    }
+
                     
                     break;
 
