@@ -368,3 +368,89 @@ writeOperand escribe en el archivo de salida cómo se accede a un operando del c
 
 - ** `Locales, parámetros y temporales`: Viven en la pila de la función, y se acceden por su distancia al registro %rbp, que marca la base del marco. El offset es un número negativo que le asigna assignMethodSlots a cada símbolo al comenzar la función (la primera variable recibe -4, la siguiente -8, etc).
 
+### 4.3. Llamadas a métodos y pasaje de parámetros
+
+Para que quien llama y quien es llamado se entiendan, seguimos la convención de llamadas de x86-64 en Linux (System V ABI). Así nuestros métodos son compatibles con funciones escritas en C.
+
+#### 4.3.1. Dónde viaja cada argumento
+
+- **Los primeros 6 argumentos** van en registros, en este orden: `%edi`, `%esi`, `%edx`, `%ecx`, `%r8d`, `%r9d`. Están en la tabla `PARAM_REGISTERS`, que usan los dos lados de la llamada.
+- **Del 7º en adelante** van en la pila, porque el ABI solo reserva 6 registros para argumentos enteros. Cada uno ocupa 8 bytes, porque `push` siempre mueve 8 bytes.
+- **El valor de retorno** queda en `%eax`.
+
+#### 4.3.2. Lado de quien llama: `OP_PARAM`, `OP_CALL` y `writeCall`
+
+El código intermedio emite los `param` de izquierda a derecha, pero los argumentos de la pila hay que empujarlos de derecha a izquierda. Además, hasta llegar al `call` no se sabe cuántos son. Por eso:
+
+- **`OP_PARAM` no genera assembly.** Solo guarda el argumento en el arreglo `callArgs` y suma 1 a `paramCount`. Los dos son `static` dentro de `translateInstruction`, así que conservan su valor entre una instrucción y la siguiente.
+- **`OP_CALL` llama a `writeCall`**, que escribe la llamada completa:
+  1. **Relleno:** si los bytes de los argumentos en la pila no son múltiplo de 16, reserva 8 bytes extra (`subq $8, %rsp`) para que `%rsp` quede alineado en el `call`. El total se calcula con `alignFrameSize`.
+
+    Por ejemplo si tuvieramos un metodo que usa 5 slots --> 5 * 4 = 20 y como de 5 a 8 slots usamos 32 bytes queda 32bytes
+
+  2. **Argumentos en la pila**, del último al 7º, en orden inverso, para que el 7º quede más cerca: `movl arg, %eax` y `pushq %rax`.
+  3. **Los primeros 6**, cargados en sus registros con `loadOperand`.
+  4. **`call nombre`.**
+  5. **Limpieza:** quien llama saca de la pila lo que empujó, con `addq $total, %rsp` (argumentos más relleno).
+  6. **Resultado:** si el método no es `void`, guarda `%eax` en el temporal.
+
+Después del `call`, `paramCount` vuelve a 0 para la próxima llamada.
+
+Alcanza con un solo arreglo aunque haya llamadas anidadas como `f(g(1), 2)`, porque el código intermedio evalúa la llamada de adentro completa antes de emitir el primer `param` de la de afuera (ver 3.2.3).
+
+Por ejemplo, `f(1, 2, 3, 4, 5, 6, 7)` genera:
+
+```asm
+subq $8, %rsp        # relleno: 1 argumento en la pila (8 bytes) -> 16
+movl $7, %eax
+pushq %rax           # el 7º argumento, a la pila
+movl $1, %edi        # los primeros 6, en registros
+movl $2, %esi
+movl $3, %edx
+movl $4, %ecx
+movl $5, %r8d
+movl $6, %r9d
+call f
+addq $16, %rsp       # saco el 7º y el relleno
+movl %eax, -4(%rbp)  # guardo el resultado
+```
+
+#### 4.3.3. Lado de quien es llamado: `copyParametersToStack`
+
+Dentro del método, `writeOperand` busca los parámetros en su slot de la pila (`offset(%rbp)`, negativo), igual que a las variables locales. Por eso, justo después del prólogo, `copyParametersToStack` copia cada parámetro desde donde llegó a su slot:
+
+- **Del 1º al 6º:** desde su registro, por ejemplo `movl %edi, -4(%rbp)`.
+- **Del 7º en adelante:** desde la pila de quien llamó. Como x86 no permite un `mov` de memoria a memoria, se pasa por `%eax`:
+  ```asm
+  movl 16(%rbp), %eax
+  movl %eax, -28(%rbp)
+  ```
+
+Hay que copiarlos sí o sí: si un método llama a otro, los registros de argumentos se pisan. Por ejemplo, en `fact(n)`, para llamar a `fact(n - 1)` se carga `n - 1` en `%edi`, y sin la copia se perdería el `n` original.
+
+El orden en `generateAssembly` importa: `assignMethodSlots` (asigna los offsets), después `writePrologue` (reserva el espacio) y recién después `copyParametersToStack`.
+
+#### 4.3.4. Dónde quedan los argumentos de la pila
+
+Después del prólogo de quien es llamado, la pila queda así (crece hacia abajo):
+
+```
+| 9º argumento         |  32(%rbp)  ┐
+| 8º argumento         |  24(%rbp)  │ los empujó quien llama
+| 7º argumento         |  16(%rbp)  ┘
+| dirección de retorno |   8(%rbp)  <- la pone el call
+| %rbp de quien llamó  |   0(%rbp)  <- pushq %rbp del prólogo
+| slots del método     |  -4(%rbp), -8(%rbp), ...
+```
+
+El 7º siempre está en `16(%rbp)` (`FIRST_STACK_ARG_OFFSET`), porque entre él y `%rbp` hay siempre dos valores de 8 bytes: el `%rbp` guardado y la dirección de retorno. En general, el argumento con índice `i` (contando desde 0, con `i >= 6`) está en `16 + 8 × (i − 6)`.
+
+Los offsets **positivos** son memoria del frame de quien llamó, y los **negativos** son del frame propio.
+
+#### 4.3.5. Observaciones
+
+- **`%rbp` no guarda los argumentos:** guarda una dirección, la base del frame. `16(%rbp)` significa "la memoria en la dirección `%rbp + 16`".
+- **La alineación importa:** el ABI exige `%rsp` múltiplo de 16 en cada `call`. El prólogo la deja así, y el relleno de `writeCall` la mantiene cuando la cantidad de argumentos en la pila es impar.
+- **Límite:** `MAX_CALL_ARGS` (256) argumentos por llamada. Si se pasa, se informa el error por `stderr`.
+- **Solo enteros y booleanos:** los argumentos `float` usan otros registros (`%xmm0`–`%xmm7`) y todavía no están soportados.
+- **Tests:** `seisParametros.ctds`, `nueveParametros.ctds` y `muchosParametrosRecursion.ctds` en `test/codigoObjeto/`.
