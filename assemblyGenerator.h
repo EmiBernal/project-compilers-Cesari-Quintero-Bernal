@@ -8,4 +8,5 @@ void generateAssembly(IntermediateList* list, FILE* out);
 void writeOperand(FILE* out, Symbol* symbol);
 void translateInstruction(FILE* out, Instruction* instruction);
 
+
 #endif

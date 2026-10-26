@@ -177,6 +177,7 @@ int main(int argc, char **argv){
         } else {
             generateAssembly(&irList, assemblyFile);
             fclose(assemblyFile);
+            printf("Creado output.s.\n");
         }
 
         freeIntermediateList(&irList);

@@ -1,0 +1,17 @@
+// Metodo void que modifica una global, llamado dentro de un while. Resultado esperado: 5
+int g;
+
+void inc() {
+    g = g + 1;
+}
+
+int main() {
+    int i;
+    g = 0;
+    i = 0;
+    while (i < 5) {
+        inc();
+        i = i + 1;
+    }
+    return g;
+}

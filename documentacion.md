@@ -290,10 +290,26 @@ addl %ecx, %eax      (resultado en eax)
 movl %eax, -16(%rbp)     
 ```
 
+El metodo `static void writePrologue(FILE* out, Symbol* method, int frameSize)` que esta en el archivo assemblyGenerator es el encargado de armar el frame y reservar slots. Mientras que el metodo `static void writeEpilogue(FILE* out)` desarma el frame y vuelve.
+
+Todas las instrucciones del codigo intermedio siguen el mismo patron: 
+
+1) Cargar en registros
+2) Operar
+3) Guardar
+
+OP_ASSIGN (x = t1) es solamente:
+asm
+    movl -8(%rbp), %eax
+    movl %eax, -12(%rbp)
+
+Hace falta pasar por %eax porque x86 no permite un mov de memoria a memoria.
+
 #### 4.1.3. Observaciones
 
 - **`%ecx` es un registro auxiliar** que no se conserva entre llamadas, por lo que se lo puede usar libremente sin tener que guardarlo.
 - **Los valores no se mantienen en registros entre instrucciones.** Cada instrucción del código intermedio carga sus operandos desde memoria (pila o `.data`) y guarda su resultado en memoria. Es menos eficiente, pero simplifica el generador y evita implementar una asignación de registros.
+- La línea `.note.GNU-stack` le avisa al linker que el programa no necesita una pila ejecutable. Sin ella, gcc/ld tira una advertencia.
 
 ### 4.2. Funciones auxiliares
 
