@@ -1,31 +1,26 @@
 #include "assemblyGenerator.h"
-#define INT_SIZE_BYTES 4
+#define INT_SIZE_BYTES 4 //Cada valor ocupa 4 bytes
 #define STACK_ALIGNMENT_BYTES 16
 
-static bool needsStackSlot(Symbol* symbol);
-static void assignStackSlot(Symbol* symbol, int* frameSize);
-static void assignInstructionSlots(Instruction* instruction, int* frameSize);
-static int assignMethodSlots(InstructionNode* beginNode);
-static void assignParameterSlots(Symbol* method, int* frameSize);
-static void writePrologue(FILE* out, Symbol* method, int frameSize);
-static int alignFrameSize(int frameSize);
-static void writeEpilogue(FILE* out);
-
+//Este metodo filtra qué necesita lugar en el stack
 static bool needsStackSlot(Symbol* symbol){
+    //Si es una variable local o parametro o temporario
     if((symbol->kind == VAR && symbol->global == false) || symbol->kind == PARAM || symbol->kind == TEMPORARY){
        return true;
     }
     return false;
 }
 
+//Este metodo asigna el lugar en el stack
 static void assignStackSlot(Symbol* symbol, int* frameSize){
     if(symbol->offset != 0 || !needsStackSlot(symbol)){
         return; 
     }
-    *frameSize += INT_SIZE_BYTES; 
-    symbol->offset = -*frameSize; 
+    *frameSize += INT_SIZE_BYTES; //Agranda el frame en 4 Bytes
+    symbol->offset = -*frameSize; //Devuelve el offset negativo pq la pila crece hacia abajo 
 }
 
+//Recibe instrucciones y utiliza el metodo que asigna el lugar en el stack
 static void assignInstructionSlots(Instruction* instruction, int* frameSize){
     if(instruction->arg1 != NULL){
         assignStackSlot(instruction->arg1, frameSize);
@@ -38,14 +33,17 @@ static void assignInstructionSlots(Instruction* instruction, int* frameSize){
     }
 }
 
+//Recorre un metodo par 
 static int assignMethodSlots(InstructionNode* beginNode){
     int frameSize = 0;
-    InstructionNode* aux = beginNode;
+    InstructionNode* aux = beginNode; 
     Symbol* method = beginNode->instruction->result;
-    assignParameterSlots(method, &frameSize);
+
+    //Primero van los parametros
+    assignParameterSlots(method, &frameSize); //Asignar lugar a los parametros
     
     while(aux != NULL && aux->instruction->opCode != OP_END_FUNC){
-        assignInstructionSlots(aux->instruction, &frameSize);
+        assignInstructionSlots(aux->instruction, &frameSize); 
         aux = aux->next;
     }
 
@@ -66,12 +64,12 @@ static int alignFrameSize(int frameSize){
 }
 
 static void writePrologue(FILE* out, Symbol* method, int frameSize){
-    fprintf(out, "    .text\n");
-    fprintf(out, "    .globl %s\n", method->name);
-    fprintf(out, "%s:\n", method->name);
-    fprintf(out, "    pushq %%rbp\n");
-    fprintf(out, "    movq %%rsp, %%rbp\n");
-    fprintf(out, "    subq $%d, %%rsp\n", alignFrameSize(frameSize));
+    fprintf(out, "    .text\n");                       //Lo que sigue va en la seccion de codigo
+    fprintf(out, "    .globl %s\n", method->name);     //el simbolo f es visible para el linker
+    fprintf(out, "%s:\n", method->name);               //etiqueta que marca el inicio de la funcion
+    fprintf(out, "    pushq %%rbp\n");                 //guardo el frame pointer de quien me llamo
+    fprintf(out, "    movq %%rsp, %%rbp\n");           //mi frame empieza aca
+    fprintf(out, "    subq $%d, %%rsp\n", alignFrameSize(frameSize)); 
 }
 
 static void writeEpilogue(FILE* out){
@@ -83,15 +81,15 @@ void writeOperand(FILE* out, Symbol* symbol){
     if (symbol->kind == CONSTANT) {
 
         if (symbol->type == TYPE_BOOL){
-            fprintf(out, "$%d", symbol->value.bval ? 1 : 0);            
+            fprintf(out, "$%d", symbol->value.bval ? 1 : 0);       //true = 1, false = 0     
         }else{
-            fprintf(out, "$%d", symbol->value.ival);
+            fprintf(out, "$%d", symbol->value.ival); //Es inmediato
         }
         
-    } else if (symbol->kind == VAR && symbol->global) {
-        fprintf(out, "%s(%%rip)", symbol->name);
+    } else if (symbol->kind == VAR && symbol->global) { 
+        fprintf(out, "%s(%%rip)", symbol->name); //Direcion de la etiqueta 
     } else {
-        fprintf(out, "%d(%%rbp)", symbol->offset);
+        fprintf(out, "%d(%%rbp)", symbol->offset); //el slot que asignamos
     }
 }
 
@@ -228,13 +226,13 @@ void generateAssembly(IntermediateList* list, FILE* out){
     InstructionNode* node = list->head;
     while(node != NULL){
         if(node->instruction->opCode == OP_BEGIN_FUNC){
-            int frameSize = assignMethodSlots(node);
-            writePrologue(out, node->instruction->result, frameSize);
+            int frameSize = assignMethodSlots(node); //Calcular slots
+            writePrologue(out, node->instruction->result, frameSize); //Escribo el prologo
         } else if(node->instruction->opCode == OP_END_FUNC) {
-            fprintf(out, "    xorl %%eax, %%eax\n");
+            fprintf(out, "    xorl %%eax, %%eax\n"); //Devuelvo 0 por defecto
             writeEpilogue(out);
         }else {
-            translateInstruction(out, node->instruction);   // <-- nuevo
+            translateInstruction(out, node->instruction); //Traducir instrucciones
         }
         node = node->next;
     }
