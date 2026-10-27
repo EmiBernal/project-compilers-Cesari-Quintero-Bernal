@@ -41,7 +41,7 @@ static void applyDeclType(ASTNode* idList, DataType type) {
 }
 
 %define parse.error verbose
-%token INT BOOLEAN RETURN VOID TRUE FALSE IF WHILE FLOAT ELSE
+%token INT BOOLEAN RETURN VOID TRUE FALSE IF WHILE FLOAT ELSE EXTERN
 %token <string> ID
 %token <num> NUM
 %token <fnum> FNUM
@@ -49,7 +49,7 @@ static void applyDeclType(ASTNode* idList, DataType type) {
 %token LT GT EQ AND OR NOT
 
 %type <dtype> type
-%type <node> program var_decls method_decls var_decl id_list method_decl params param_list block block_var_decls statements statement method_call args arg_list expr
+%type <node> program var_decls method_decls var_decl id_list method_decl extern_decl params param_list block block_var_decls statements statement method_call args arg_list expr
 %start program
 
 %left OR
@@ -87,7 +87,12 @@ id_list: ID {$$ = createSeqNode(createIdNode($1), NULL);}
 method_decl
         : type ID LPAREN params RPAREN block {$$ = createMethodNode($1, $2, $4, $6);}
         | VOID ID LPAREN params RPAREN block {$$ = createMethodNode(TYPE_VOID, $2, $4, $6);}
+        | extern_decl {$$ = $1;}
         ;
+
+extern_decl: EXTERN type ID LPAREN params RPAREN SEMI {$$ = createExternNode($2, $3, $5);}
+    | EXTERN VOID ID LPAREN params RPAREN SEMI {$$ = createExternNode(TYPE_VOID, $3, $5);}
+    ;
 
 params: %empty {$$ = NULL;} 
     | param_list {$$ = $1;}

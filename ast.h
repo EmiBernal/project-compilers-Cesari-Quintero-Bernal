@@ -28,7 +28,8 @@ typedef enum {
     NODE_CALL,//llamada a metodo
     NODE_OP,
     NODE_UNOP,//operador unario
-    NODE_PROG
+    NODE_PROG,
+    NODE_EXTERN
 } NodeType;
 
 typedef enum {
@@ -114,6 +115,7 @@ ASTNode* createBlockNode(ASTNode* decls, ASTNode* stmts);
 ASTNode* createSeqNode(ASTNode* current, ASTNode* next);
 ASTNode* enlistSeqNode(ASTNode* list, ASTNode* item);
 ASTNode* createProgNode(ASTNode* globals, ASTNode* methods);
+ASTNode* createExternNode(DataType type, char* id_name, ASTNode* params);
 
 //Funcion para ver el arbol AST
 void printAST(ASTNode* node, int level);

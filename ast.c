@@ -105,6 +105,8 @@ ASTNode* createIdNode(char* name) {
 
 }
 
+
+
 //Expresiones
 
 ASTNode* createOpNode(SymbolType op, ASTNode* left, ASTNode* right) {
@@ -224,6 +226,20 @@ ASTNode* createMethodNode(DataType return_type, char* name, ASTNode* params, AST
     return node;
 }
 
+ASTNode* createExternNode(DataType type, char* id_name, ASTNode* params){
+    Symbol* symbol = newSymbol(FUNCTION, type, id_name);
+    if(symbol == NULL){
+        return NULL;
+    }
+
+    ASTNode* node = newNode(NODE_EXTERN, symbol, params, NULL, NULL);
+
+    if (node == NULL) {
+        free(symbol);
+        return NULL;
+    }
+    return node;
+}
 
 //Listas y programa
 
@@ -336,6 +352,10 @@ void printAST(ASTNode* node, int level){
 
         case NODE_METHOD:
             printf("METHOD: %s %s\n", typeToString(node->info->type), node->info->name);
+            break;
+
+        case NODE_EXTERN: 
+            printf("METHOD EXTERN: %s %s\n", typeToString(node->info->type), node->info->name);
             break;
 
         case NODE_ASSIGN:

@@ -65,6 +65,19 @@ static void checkNode(ASTNode* n){
             currentMethod = NULL;
             break;
 
+        case NODE_EXTERN: {
+            n->info->params = n->left;   //guardo los parametros para chequear las llamadas
+            bool newMethod = insertSymbol(&table, n->info);
+
+            if(!newMethod){
+                semanticError("metodo '%s' ya declarado", n->line, n->info->name);
+            }
+            enterScope(&table); // scope solo para detectar parametros duplicados
+            checkNode(n->left); //inserta los parametros
+            exitScope(&table);
+            break;
+        }
+            
         case NODE_BLOCK:
             enterScope(&table);
             checkNode(n->left); //Declaraciones locales
