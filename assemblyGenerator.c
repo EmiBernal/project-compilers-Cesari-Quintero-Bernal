@@ -3,6 +3,9 @@
 #define INT_SIZE_BYTES 4 //Cada valor ocupa 4 bytes
 #define STACK_ALIGNMENT_BYTES 16
 #define MAX_REGISTER_PARAMS 6
+#define STACK_ARG_SIZE_BYTES 8 
+#define MAX_CALL_ARGS 256
+#define FIRST_STACK_ARG_OFFSET 16
 
 static const char* PARAM_REGISTERS[MAX_REGISTER_PARAMS] = {
     "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"
@@ -66,7 +69,13 @@ static void writeDataSection(FILE* out, IntermediateList* list){
                     //Duplico capacidad
                     capacity = capacity * 2;
                 }
-                globals = realloc(globals, capacity * sizeof(Symbol*));
+                Symbol** aux = realloc(globals, capacity * sizeof(Symbol*));
+                if(aux == NULL){
+                    fprintf(stderr, "Error: no hay memoria para las variables globales\n");
+                    free(globals);
+                    return;
+                }
+                globals = aux;
             }
             globals[count] = symbol;
             count++;
@@ -148,9 +157,18 @@ static int alignFrameSize(int frameSize){
 static void copyParametersToStack(FILE* out, Symbol* method){
     ASTNode* parameters = method->params;
     int index = 0;
-    while(parameters != NULL && index < MAX_REGISTER_PARAMS){
+    while(parameters != NULL){
         Symbol* param = parameters->left->info;
-        fprintf(out, "    movl %s, %d(%%rbp)\n", PARAM_REGISTERS[index], param->offset); //param->offset ya tiene valor pq assignMethodSlots corrio antes
+        if(index < MAX_REGISTER_PARAMS){
+            //Los primeros 6 llegan en registros
+            fprintf(out, "    movl %s, %d(%%rbp)\n", PARAM_REGISTERS[index], param->offset); //param->offset ya tiene valor pq assignMethodSlots corrio antes
+        }else{
+            //Del 7mo en adelante estan en la pila de quien llamo: 16(%rbp), 24(%rbp), 32(%rbp)...
+            int stackOffset = FIRST_STACK_ARG_OFFSET + (index - MAX_REGISTER_PARAMS) * STACK_ARG_SIZE_BYTES;
+            //No existe mov de memoria a memoria, paso por %eax
+            fprintf(out, "    movl %d(%%rbp), %%eax\n", stackOffset);
+            fprintf(out, "    movl %%eax, %d(%%rbp)\n", param->offset);
+        }
         parameters = parameters->right;
         index++;
     }
@@ -198,8 +216,43 @@ static void storeResult(FILE* out,const char* reg, Symbol* symbol){
     fprintf(out, "\n");
 }
 
+//Escribe una llamada completa: argumentos en registros y en la pila, call, limpieza y retorno
+static void writeCall(FILE* out, Instruction* instruction, Symbol** args, int argCount){
+    //Del 7mo argumento en adelante van a la pila
+    int stackArgs = 0;
+    if(argCount > MAX_REGISTER_PARAMS){
+        stackArgs = argCount - MAX_REGISTER_PARAMS;
+    }
+    //Bytes que ocupan los argumentos en la pila, y el total redondeado a 16 para que %rsp quede alineado en el call
+    int stackBytes = stackArgs * STACK_ARG_SIZE_BYTES;
+    int relleno = alignFrameSize(stackBytes);
+    //Si sobra, es relleno: lo reservo antes de los push
+    if(relleno > stackBytes){
+        fprintf(out, "    subq $%d, %%rsp\n", relleno - stackBytes);
+    }
+    //Empujo los de la pila en orden inverso, asi el 7mo queda mas cerca (en 16(%rbp) de quien es llamado)
+    for(int i = argCount - 1; i >= MAX_REGISTER_PARAMS; i--){
+        loadOperand(out, args[i], "%eax");
+        fprintf(out, "    pushq %%rax\n"); //push necesita el registro de 64 bits
+    }
+    //Los primeros 6 van en registros
+    for(int i = 0; i < argCount && i < MAX_REGISTER_PARAMS; i++){
+        loadOperand(out, args[i], PARAM_REGISTERS[i]);
+    }
+    fprintf(out, "    call %s\n", instruction->arg1->name);
+    //Quien llama saca de la pila todo lo que bajo (argumentos + relleno)
+    if(relleno > 0){
+        fprintf(out, "    addq $%d, %%rsp\n", relleno);
+    }
+    //Si el metodo devuelve algo, el valor queda en %eax
+    if(instruction->result != NULL){
+        storeResult(out, "%eax", instruction->result);
+    }
+}
+
 void translateInstruction(FILE* out, Instruction* instruction){
-    static int paramCount = 0; 
+    static Symbol* callArgs[MAX_CALL_ARGS]; //Argumentos de la llamada actual, en orden
+    static int paramCount = 0;
     switch(instruction->opCode){
 
         case OP_ASSIGN:
@@ -304,21 +357,16 @@ void translateInstruction(FILE* out, Instruction* instruction){
             break;
 
         case OP_PARAM:
-            //Si el contador de parametros llego al tope
-            if(paramCount >= MAX_REGISTER_PARAMS){
-                fprintf(stderr, "Error: mas de %d argumentos no esta soportado\n", MAX_REGISTER_PARAMS);
+            if(paramCount >= MAX_CALL_ARGS){
+                fprintf(stderr, "Error: mas de %d argumentos no esta soportado\n", MAX_CALL_ARGS);
             }else{
-                loadOperand(out, instruction->arg1, PARAM_REGISTERS[paramCount]);
+                callArgs[paramCount] = instruction->arg1;
+                paramCount++;
             }
-            paramCount++;
             break;
 
         case OP_CALL:
-            fprintf(out, "    call %s\n", instruction->arg1->name);
-            if(instruction->result != NULL){
-                //Si el metodo devuelve algo
-                storeResult(out, "%eax", instruction->result);
-            }
+            writeCall(out, instruction, callArgs, paramCount);
             paramCount = 0;
             break;
 
