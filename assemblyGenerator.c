@@ -178,9 +178,7 @@ static void writePrologue(FILE* out, Symbol* method, int frameSize){
     fprintf(out, "    .text\n");                       //Lo que sigue va en la seccion de codigo
     fprintf(out, "    .globl %s\n", method->name);     //el simbolo f es visible para el linker
     fprintf(out, "%s:\n", method->name);               //etiqueta que marca el inicio de la funcion
-    fprintf(out, "    pushq %%rbp\n");                 //guardo el frame pointer de quien me llamo
-    fprintf(out, "    movq %%rsp, %%rbp\n");           //mi frame empieza aca
-    fprintf(out, "    subq $%d, %%rsp\n", alignFrameSize(frameSize)); 
+    fprintf(out, "    enter $%d, $0\n", alignFrameSize(frameSize)); // coloca el valor actual del %rbp, almacena el valor actual de %rsp en %rbp y reduce el %rsp para dejar espacio a x variables locales
 }
 
 static void writeEpilogue(FILE* out){
@@ -239,6 +237,7 @@ static void writeCall(FILE* out, Instruction* instruction, Symbol** args, int ar
     for(int i = 0; i < argCount && i < MAX_REGISTER_PARAMS; i++){
         loadOperand(out, args[i], PARAM_REGISTERS[i]);
     }
+    fprintf(out, "    movl $0, %%eax\n");
     fprintf(out, "    call %s\n", instruction->arg1->name);
     //Quien llama saca de la pila todo lo que bajo (argumentos + relleno)
     if(relleno > 0){
@@ -301,8 +300,9 @@ void translateInstruction(FILE* out, Instruction* instruction){
             loadOperand(out, instruction->arg1, "%eax");
             loadOperand(out, instruction->arg2, "%ecx");
             fprintf(out, "    cmpl %%ecx, %%eax\n");
-            fprintf(out, "    setl %%al\n");
-            fprintf(out, "    movzbl %%al, %%eax\n");
+            fprintf(out, "    movl $0, %%eax\n");
+            fprintf(out, "    movl $1, %%ecx\n");
+            fprintf(out, "    cmovl %%ecx, %%eax\n");
             storeResult(out, "%eax", instruction->result);
             break;
 
@@ -310,8 +310,9 @@ void translateInstruction(FILE* out, Instruction* instruction){
             loadOperand(out, instruction->arg1, "%eax");
             loadOperand(out, instruction->arg2, "%ecx");
             fprintf(out, "    cmpl %%ecx, %%eax\n");
-            fprintf(out, "    setg %%al\n");
-            fprintf(out, "    movzbl %%al, %%eax\n");
+            fprintf(out, "    movl $0, %%eax\n");
+            fprintf(out, "    movl $1, %%ecx\n");
+            fprintf(out, "    cmovg %%ecx, %%eax\n");
             storeResult(out, "%eax", instruction->result);
             break;  
 
@@ -319,8 +320,9 @@ void translateInstruction(FILE* out, Instruction* instruction){
             loadOperand(out, instruction->arg1, "%eax");
             loadOperand(out, instruction->arg2, "%ecx");
             fprintf(out, "    cmpl %%ecx, %%eax\n");
-            fprintf(out, "    sete %%al\n");
-            fprintf(out, "    movzbl %%al, %%eax\n");
+            fprintf(out, "    movl $0, %%eax\n");
+            fprintf(out, "    movl $1, %%ecx\n");
+            fprintf(out, "    cmove %%ecx, %%eax\n");
             storeResult(out, "%eax", instruction->result);
             break;
 
