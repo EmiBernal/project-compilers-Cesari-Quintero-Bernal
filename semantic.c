@@ -7,6 +7,8 @@
 static SymbolTable table;
 static Symbol* currentMethod = NULL;
 static int errors = 0;
+static int counter = 0; 
+static int maxOffset = 0;
 
 //Funciones recursivas para chequear errores
 static void checkNode(ASTNode* n);
@@ -41,8 +43,14 @@ static void checkNode(ASTNode* n){
         case NODE_DECL:
             case NODE_PARAM: {
                 n->info->global = (currentMethod == NULL); // si no estoy dentro de un metodo, la declaracion es global, si estoy dentro de uno es parametro o local
+                if(n->info->global == false){
+                    counter += 4;
+                    n->info->offset = -counter;
+                    if(counter > maxOffset){
+                        maxOffset = counter;
+                    }
+                }
                 bool newParam = insertSymbol(&table, n->info);
-                
                 //Si ya fue declarado previamente
                 if(!newParam){
                     semanticError("'%s' ya declarado en este bloque", n->line, n->info->name);
@@ -58,11 +66,14 @@ static void checkNode(ASTNode* n){
             }
             currentMethod = n->info;
             enterScope(&table); // Scope de la función: parámetros y variables locales del cuerpo
+            counter = 0;
+            maxOffset = 0;
             checkNode(n->left); //inserta los parametros
             checkNode(n->right->left); //declaraciones locales 
             checkNode(n->right->right); //sentencias 
             exitScope(&table);
             currentMethod = NULL;
+            n->info->frameSize = maxOffset;
             break;
 
         case NODE_EXTERN: {
@@ -78,12 +89,15 @@ static void checkNode(ASTNode* n){
             break;
         }
             
-        case NODE_BLOCK:
+        case NODE_BLOCK:{
+            int savedOffset = counter;
             enterScope(&table);
             checkNode(n->left); //Declaraciones locales
             checkNode(n->right); //Sentencias
             exitScope(&table);
+            counter = savedOffset;
             break;
+        }
         
         case NODE_ASSIGN: {
                 //Guardo los tipos de cada expresion

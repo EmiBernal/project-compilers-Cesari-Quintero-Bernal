@@ -1,6 +1,5 @@
 #include "assemblyGenerator.h"
 #include <stdlib.h>
-#define INT_SIZE_BYTES 4 //Cada valor ocupa 4 bytes
 #define STACK_ALIGNMENT_BYTES 16
 #define MAX_REGISTER_PARAMS 6
 #define STACK_ARG_SIZE_BYTES 8 
@@ -11,11 +10,6 @@ static const char* PARAM_REGISTERS[MAX_REGISTER_PARAMS] = {
     "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"
 };
 
-static bool needsStackSlot(Symbol* symbol);
-static void assignStackSlot(Symbol* symbol, int* frameSize);
-static void assignInstructionSlots(Instruction* instruction, int* frameSize);
-static int assignMethodSlots(InstructionNode* beginNode);
-static void assignParameterSlots(Symbol* method, int* frameSize);
 static int alignFrameSize(int frameSize);
 static void writePrologue(FILE* out, Symbol* method, int frameSize);
 static void writeEpilogue(FILE* out);
@@ -92,62 +86,7 @@ static void writeDataSection(FILE* out, IntermediateList* list){
     free(globals);
 }
 
-//Este metodo filtra qué necesita lugar en el stack
-static bool needsStackSlot(Symbol* symbol){
-    //Si es una variable local o parametro o temporario
-    if((symbol->kind == VAR && symbol->global == false) || symbol->kind == PARAM || symbol->kind == TEMPORARY){
-       return true;
-    }
-    return false;
-}
 
-//Este metodo asigna el lugar en el stack
-static void assignStackSlot(Symbol* symbol, int* frameSize){
-    if(symbol->offset != 0 || !needsStackSlot(symbol)){
-        return; 
-    }
-    *frameSize += INT_SIZE_BYTES; //Agranda el frame en 4 Bytes
-    symbol->offset = -*frameSize; //Devuelve el offset negativo pq la pila crece hacia abajo 
-}
-
-//Recibe instrucciones y utiliza el metodo que asigna el lugar en el stack
-static void assignInstructionSlots(Instruction* instruction, int* frameSize){
-    if(instruction->arg1 != NULL){
-        assignStackSlot(instruction->arg1, frameSize);
-    }
-    if(instruction->arg2 != NULL) {
-        assignStackSlot(instruction->arg2, frameSize);
-    }
-    if(instruction->result != NULL){
-        assignStackSlot(instruction->result, frameSize);
-    }
-}
-
-//Recorre un metodo par 
-static int assignMethodSlots(InstructionNode* beginNode){
-    int frameSize = 0;
-    InstructionNode* aux = beginNode; 
-    Symbol* method = beginNode->instruction->result;
-
-    //Primero van los parametros
-    assignParameterSlots(method, &frameSize); //Asignar lugar a los parametros
-    
-    while(aux != NULL && aux->instruction->opCode != OP_END_FUNC){
-        assignInstructionSlots(aux->instruction, &frameSize); 
-        aux = aux->next;
-    }
-
-    return frameSize;
-}
-
-static void assignParameterSlots(Symbol* method, int* frameSize){
-    ASTNode* parameters = method->params;
-    while(parameters != NULL){
-        Symbol* param = parameters->left->info;   // el símbolo del parámetro
-        assignStackSlot(param, frameSize);
-        parameters = parameters->right;           // el siguiente
-    }
-}
 
 static int alignFrameSize(int frameSize){
    return ((frameSize + STACK_ALIGNMENT_BYTES - 1) / STACK_ALIGNMENT_BYTES) * STACK_ALIGNMENT_BYTES;
@@ -161,7 +100,7 @@ static void copyParametersToStack(FILE* out, Symbol* method){
         Symbol* param = parameters->left->info;
         if(index < MAX_REGISTER_PARAMS){
             //Los primeros 6 llegan en registros
-            fprintf(out, "    movl %s, %d(%%rbp)\n", PARAM_REGISTERS[index], param->offset); //param->offset ya tiene valor pq assignMethodSlots corrio antes
+            fprintf(out, "    movl %s, %d(%%rbp)\n", PARAM_REGISTERS[index], param->offset); // param->offset lo asignamos desde la tabla de simbolos
         }else{
             //Del 7mo en adelante estan en la pila de quien llamo: 16(%rbp), 24(%rbp), 32(%rbp)...
             int stackOffset = FIRST_STACK_ARG_OFFSET + (index - MAX_REGISTER_PARAMS) * STACK_ARG_SIZE_BYTES;
@@ -390,14 +329,14 @@ void generateAssembly(IntermediateList* list, FILE* out){
     InstructionNode* node = list->head;
     while(node != NULL){
         if(node->instruction->opCode == OP_BEGIN_FUNC){
-            int frameSize = assignMethodSlots(node); //Calcular slots
-            writePrologue(out, node->instruction->result, frameSize); //Escribo el prologo
+            int frameSize = node->instruction->result->frameSize; 
+            writePrologue(out, node->instruction->result, frameSize); 
             copyParametersToStack(out, node->instruction->result);
         } else if(node->instruction->opCode == OP_END_FUNC) {
             fprintf(out, "    xorl %%eax, %%eax\n"); //Devuelvo 0 por defecto
             writeEpilogue(out);
         }else {
-            translateInstruction(out, node->instruction); //Traducir instrucciones
+            translateInstruction(out, node->instruction); 
         }
         node = node->next;
     }

@@ -72,6 +72,10 @@ Symbol* createTempSymbol(DataType type){
     if(symbol == NULL){
         return NULL;
     }
+    if(currentMethod != NULL){
+        currentMethod->frameSize += 4;
+        symbol->offset = -currentMethod->frameSize;
+    }
     symbol->kind = TEMPORARY; 
     symbol->type = type;
 
@@ -392,6 +396,9 @@ Symbol* generateMidRepresentation(ASTNode* node, IntermediateList* list) {
             currentMethod = NULL;
             return NULL;
 
+        case NODE_EXTERN: 
+            return NULL; // no genera codigo, esta definido en otro archivo
+            
         // los parametros no generan instrucciones: se declaran al marcar el inicio del metodo
         case NODE_PARAM:
             return NULL;

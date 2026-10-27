@@ -80,7 +80,8 @@ typedef struct Symbol{
     DataType type;      
     struct ASTNode* params;
     bool global; 
-    int offset; /* guardar posicion en la pila */                                 
+    int offset; /* guardar posicion en la pila */   
+    int frameSize; /* solo FUNCTION bytes de locales + temporales */                    
 } Symbol;
 
 
