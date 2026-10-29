@@ -1,0 +1,13 @@
+int a;
+int b;
+boolean c;
+
+int main() {
+    a = 150;
+    b = 200;
+    c = true;
+    if (c) {
+        a = a + b;
+    }
+    return a;
+}
