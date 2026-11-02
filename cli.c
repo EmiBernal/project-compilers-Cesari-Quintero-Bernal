@@ -7,6 +7,7 @@
 static int parseTarget(const char *nombre, Target *target){
     if (strcmp(nombre, "scan") == 0) *target = TARGET_SCAN;
     else if (strcmp(nombre, "parse") == 0) *target = TARGET_PARSE;
+    else if (strcmp(nombre, "sem") == 0) *target = TARGET_SEM;
     else if (strcmp(nombre, "codinter") == 0) *target = TARGET_CODINTER;
     else if (strcmp(nombre, "assembly") == 0) *target = TARGET_ASSEMBLY;
     else return -1;
@@ -117,7 +118,7 @@ void printUsage(const char *progName){
     fprintf(stderr, "Uso: %s [opciones] nombreArchivo.ctds\n", progName);
     fprintf(stderr, "Opciones:\n");
     fprintf(stderr, "  -o <salida>         Renombra el archivo ejecutable a <salida>\n");
-    fprintf(stderr, "  -target <etapa>     Compila hasta la etapa dada: scan, parse, codinter o assembly\n");
+    fprintf(stderr, "  -target <etapa>     Compila hasta la etapa dada: scan, parse, sem, codinter o assembly\n");
     fprintf(stderr, "  -opt <optimizacion> Realiza la optimizacion dada. all realiza todas\n");
     fprintf(stderr, "  -debug              Imprime informacion de debugging\n");
 }

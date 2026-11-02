@@ -10,6 +10,8 @@ ctds_parser
 output.s
 *.lex
 *.s
+*.ass
+*.sem
 *.out
 *.sint
 *.ci

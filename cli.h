@@ -1,7 +1,7 @@
 #ifndef CLI_H
 #define CLI_H
 
-typedef enum { TARGET_SCAN, TARGET_PARSE, TARGET_CODINTER, TARGET_ASSEMBLY, TARGET_EXEC } Target;
+typedef enum { TARGET_SCAN, TARGET_PARSE, TARGET_SEM, TARGET_CODINTER, TARGET_ASSEMBLY, TARGET_EXEC } Target;
 
 //Optimizaciones: cada una es un bit de Options.opts. OPT_ALL prende todos
 #define OPT_ALL (~0)

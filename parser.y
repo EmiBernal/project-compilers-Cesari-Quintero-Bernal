@@ -215,7 +215,7 @@ int main(int argc, char **argv){
             }
         }
         free(lexName);
-    } else if(yyparse() == 0 && semanticAnalysis(root) == 0){
+    } else if(yyparse() == 0){
 
         if(opts.debug){
             printAST(root, 0, stdout);
@@ -245,95 +245,122 @@ int main(int argc, char **argv){
                 resultado = 0;
             }
             free(sintName);
-        } else {
-            IntermediateList irList;
-            initIntermediateList(&irList);
-            generateMidRepresentation(root, &irList);
+        } else if(semanticAnalysis(root) == 0){
+            if(opts.target == TARGET_SEM){
+                char *semName = outputName(opts.input, NULL, ".sem");
 
-            if(opts.debug){
-                printIntermediateList(&irList, stdout);
-                printf("Codigo intermedio generado correctamente.\n");
-            }
-
-            if(opts.target == TARGET_CODINTER){
-                char *ciName = outputName(opts.input, NULL, ".ci");
-
-                FILE* ciFile = NULL;
-                if(ciName != NULL){
-                    ciFile = fopen(ciName, "w");
+                FILE* semFile = NULL;
+                if(semName != NULL){
+                    semFile = fopen(semName, "w");
                 }
 
-                if(ciFile == NULL){
-                    if(ciName != NULL){
-                        fprintf(stderr, "No se pudo crear %s\n", ciName);
+                if(semFile == NULL){
+                    if(semName != NULL){
+                        fprintf(stderr, "No se pudo crear %s\n", semName);
                     } else {
-                        fprintf(stderr, "No se pudo crear el archivo .ci\n");
+                        fprintf(stderr, "No se pudo crear el archivo .sem\n");
                     }
                 } else {
-                    printIntermediateList(&irList, ciFile);
-                    fclose(ciFile);
+                    printAST(root, 0, semFile);
+                    fclose(semFile);
                     if(opts.debug){
-                        printf("Creado %s.\n", ciName);
+                        printf("Creado %s.\n", semName);
                     }
                     resultado = 0;
                 }
-                free(ciName);
+                free(semName);
             } else {
-                //-o solo renombra el ejecutable, por eso el .s no lo usa
-                char *assemblyName = outputName(opts.input, NULL, ".s");
+                IntermediateList irList;
+                initIntermediateList(&irList);
+                generateMidRepresentation(root, &irList);
 
-                //Si outputName no consiguio memoria no hay nombre, y fopen(NULL) no se puede llamar
-                FILE* assemblyFile = NULL;
-                if(assemblyName != NULL){
-                    assemblyFile = fopen(assemblyName, "w");
+                if(opts.debug){
+                    printIntermediateList(&irList, stdout);
+                    printf("Codigo intermedio generado correctamente.\n");
                 }
 
-                if(assemblyFile == NULL){
-                    if(assemblyName != NULL){
-                        fprintf(stderr, "No se pudo crear %s\n", assemblyName);
-                    } else {
-                        fprintf(stderr, "No se pudo crear el archivo .s\n");
-                    }
-                } else {
-                    generateAssembly(&irList, assemblyFile);
-                    fclose(assemblyFile);
-                    if(opts.debug){
-                        printf("Creado %s.\n", assemblyName);
+                if(opts.target == TARGET_CODINTER){
+                    char *ciName = outputName(opts.input, NULL, ".ci");
+
+                    FILE* ciFile = NULL;
+                    if(ciName != NULL){
+                        ciFile = fopen(ciName, "w");
                     }
 
-                    if(opts.target == TARGET_EXEC){
-                        //Sin -target se sigue hasta el ejecutable: gcc ensambla el .s y lo linkea con runtime.c
-                        //Aca si se usa -o: si se paso, es el nombre del ejecutable; si no, nombreArchivo.out
-                        char *execName = outputName(opts.input, opts.output, ".out");
-                        if(execName == NULL){
-                            fprintf(stderr, "No se pudo generar el nombre del ejecutable\n");
+                    if(ciFile == NULL){
+                        if(ciName != NULL){
+                            fprintf(stderr, "No se pudo crear %s\n", ciName);
                         } else {
-                            //Las comillas simples evitan que la shell separe nombres con espacios
-                            char command[1024];
-                            snprintf(command, sizeof(command), "gcc -o '%s' '%s' '%s'", execName, assemblyName, RUNTIME_PATH);
-                            if(opts.debug){
-                                printf("Ejecutando: %s\n", command);
-                            }
-                            //system devuelve 0 si gcc termino bien
-                            if(system(command) != 0){
-                                fprintf(stderr, "No se pudo generar el ejecutable %s\n", execName);
-                            } else {
-                                if(opts.debug){
-                                    printf("Creado %s.\n", execName);
-                                }
-                                resultado = 0;
-                            }
-                            free(execName);
+                            fprintf(stderr, "No se pudo crear el archivo .ci\n");
                         }
                     } else {
-                        //Con -target assembly la compilacion termina en el .s
+                        printIntermediateList(&irList, ciFile);
+                        fclose(ciFile);
+                        if(opts.debug){
+                            printf("Creado %s.\n", ciName);
+                        }
                         resultado = 0;
                     }
-                }
-                free(assemblyName);
-            }
+                    free(ciName);
+                } else {
+                    //-o solo renombra el ejecutable, por eso el .ass no lo usa
+                    char *assemblyName = outputName(opts.input, NULL, ".ass");
 
-            freeIntermediateList(&irList);
+                    //Si outputName no consiguio memoria no hay nombre, y fopen(NULL) no se puede llamar
+                    FILE* assemblyFile = NULL;
+                    if(assemblyName != NULL){
+                        assemblyFile = fopen(assemblyName, "w");
+                    }
+
+                    if(assemblyFile == NULL){
+                        if(assemblyName != NULL){
+                            fprintf(stderr, "No se pudo crear %s\n", assemblyName);
+                        } else {
+                            fprintf(stderr, "No se pudo crear el archivo .ass\n");
+                        }
+                    } else {
+                        generateAssembly(&irList, assemblyFile);
+                        fclose(assemblyFile);
+                        if(opts.debug){
+                            printf("Creado %s.\n", assemblyName);
+                        }
+
+                        if(opts.target == TARGET_EXEC){
+                            //Sin -target se sigue hasta el ejecutable: gcc ensambla el .ass y lo linkea con runtime.c
+                            //Aca si se usa -o: si se paso, es el nombre del ejecutable; si no, nombreArchivo.out
+                            char *execName = outputName(opts.input, opts.output, ".out");
+                            if(execName == NULL){
+                                fprintf(stderr, "No se pudo generar el nombre del ejecutable\n");
+                            } else {
+                                //Las comillas simples evitan que la shell separe nombres con espacios
+                                //gcc no reconoce la extension .ass: -x assembler le dice que lo que sigue es assembly
+                                //y -x none vuelve a decidir por la extension, para que runtime.c se compile como C
+                                char command[1024];
+                                snprintf(command, sizeof(command), "gcc -o '%s' -x assembler '%s' -x none '%s'", execName, assemblyName, RUNTIME_PATH);
+                                if(opts.debug){
+                                    printf("Ejecutando: %s\n", command);
+                                }
+                                //system devuelve 0 si gcc termino bien
+                                if(system(command) != 0){
+                                    fprintf(stderr, "No se pudo generar el ejecutable %s\n", execName);
+                                } else {
+                                    if(opts.debug){
+                                        printf("Creado %s.\n", execName);
+                                    }
+                                    resultado = 0;
+                                }
+                                free(execName);
+                            }
+                        } else {
+                            //Con -target assembly la compilacion termina en el .ass
+                            resultado = 0;
+                        }
+                    }
+                    free(assemblyName);
+                }
+
+                freeIntermediateList(&irList);
+            }
         }
 
         freeAST(root);
