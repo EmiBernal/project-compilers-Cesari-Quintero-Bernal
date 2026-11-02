@@ -454,3 +454,45 @@ Los offsets **positivos** son memoria del frame de quien llamó, y los **negativ
 - **Límite:** `MAX_CALL_ARGS` (256) argumentos por llamada. Si se pasa, se informa el error por `stderr`.
 - **Solo enteros y booleanos:** los argumentos `float` usan otros registros (`%xmm0`–`%xmm7`) y todavía no están soportados.
 - **Tests:** `seisParametros.ctds`, `nueveParametros.ctds` y `muchosParametrosRecursion.ctds` en `test/codigoObjeto/`.
+
+## 5. Testing usando la metodologia Fuzzing
+
+### 5.1 La tecnica Fuzzing
+
+La tecnica Fuzzing se basa en generar muchisimas entradas de manera automatica (miles x min), pasarselas al programa y mirar como se porta:
+
+Posibles comportamientos:
+- Que el programa crashee
+- Que el programa se cuelgue
+- Que el programa devuelva un resultado incorrecto
+
+### 5.2 Tipos de fuzzing
+
+Para el uso de fuzzing de compiladores, no nos conviene utilizar un generador aleatorio que trabaje en gray box, mas bien podemos reutilizar la gramatica que ya tenemos incorporada en el compilador para definir una "estructura" asi no se cuelga de forma seguida
+
+Por lo tanto, utilizaremos el tipo de fuzzing: Grammar Fuzzing
+
+Grammar Fuzzing genera programas siguiendo las reglas de las gramaticas. El generador produce programas eligiendo reglas al azar. Trabaja con terminales y no terminales
+
+De esta manera **todos los programas son sintacticamente validos**. Asi logran llegar a las etapas profundas donde podremos determinar los resultados:
+
+- Analisis semantico
+- Codigo intermedio
+- Codigo objeto
+- Optimizaciones
+
+Ademas, el generador llevara su propia tabla de simbolo permitinedo asi que sea **sintacticamente validos**
+
+### 5.3 Proceso 
+
+1) Generar un programa aleatorio
+
+2) Compilar dicho programa con nuestro compilador y con un compilador de referencia. En este caso, nuestro compilador de referencia, tambien llamado "Oraculo", sera GCC
+
+3) Ejecutar el programa en ambos compiladores y comparar resultados
+
+Si los resultados difieren, encontramos un bug
+
+![Process fuzzing in grammmar based input generation](fuzzing/fuzzing.png)
+
+##

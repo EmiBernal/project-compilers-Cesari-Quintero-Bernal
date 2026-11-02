@@ -52,7 +52,8 @@ fi
     printf 'typedef int boolean;\n#define true 1\n#define false 0\n#define main ctds_main\n'
     cat "$PROGRAM"
 } > prog.c
-if ! gcc -Wall -std=gnu17 prog.c "$HARNESS" -o prog_gcc 2> gcc_stderr.txt; then
+# -fwrapv: el overflow de int da la vuelta (como addl/imull en ctds) en vez de ser UB
+if ! gcc -Wall -std=gnu17 -fwrapv prog.c "$HARNESS" -o prog_gcc 2> gcc_stderr.txt; then
     echo "ERROR_GCC"
     exit 1
 fi

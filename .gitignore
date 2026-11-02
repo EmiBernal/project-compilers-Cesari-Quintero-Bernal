@@ -10,3 +10,8 @@ ctds_parser
 output.s
 prog
 *.o
+
+# Archivos para las pruebas fuzzer
+ctds.s
+prog_ctds
+prog_gcc

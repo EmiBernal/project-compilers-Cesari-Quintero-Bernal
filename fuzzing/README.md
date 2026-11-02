@@ -178,3 +178,5 @@ fuzzing/fuzz/compare.sh /tmp/prog.ctds
 Runner para poder juntar la cantidad de casos a probar, las semillas y la profundidad que debe tener el arbol.
 
 Cuando el arbol tiene expresiones que guarda valores chicos, podemos notar que los tests suelen funcionar y devolver ok en su mayoria
+
+## Compartimientos indefinidos
