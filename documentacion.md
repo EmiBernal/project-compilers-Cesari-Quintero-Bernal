@@ -455,9 +455,113 @@ Los offsets **positivos** son memoria del frame de quien llamó, y los **negativ
 - **Solo enteros y booleanos:** los argumentos `float` usan otros registros (`%xmm0`–`%xmm7`) y todavía no están soportados.
 - **Tests:** `seisParametros.ctds`, `nueveParametros.ctds` y `muchosParametrosRecursion.ctds` en `test/codigoObjeto/`.
 
-## 5. Testing usando la metodologia Fuzzing
+## 5. Optimizaciones
 
-### 5.1 La tecnica Fuzzing
+El generador de código objeto admite optimizaciones que se activan según el valor de la variable global `optimization` (definida en `assemblyGenerator.c`). Por ahora su valor está fijo en el código; más adelante se tomará de un argumento de la línea de comandos. Si `optimization` no coincide con el nombre de una optimización, el generador produce el código sin optimizar.
+
+### 5.1. Shift
+
+Se reemplazan las instrucciones de multiplicacion y division (`imull`, `idivl`) por desplazamientos de bits cuando uno de los operandos es una **constante entera que es potencia de 2** (1, 2, 4, 8, 16...). Se activa con `optimization = "shifteos"`.
+
+| Operación | Sin optimizar | Con `shifteos` (`2^k`) |
+|---|---|---|
+| `x * 2^k` | `imull` | `shll $k` |
+| `x / 2^k` | `cltd` + `idivl` | sesgo + `addl` + `sarl $k` |
+| `x % 2^k` | `cltd` + `idivl` | sesgo + `addl` + `andl $(2^k - 1)` + `subl` |
+
+La optimización se aplica solo a constantes. Si el operando no es una constante potencia de 2, se genera el código normal.
+
+#### Funciones auxiliares
+
+##### 5.1.1. `isPowerOfTwoConstant`
+
+```c
+static bool isPowerOfTwoConstant(Symbol* symbol, int* shift)
+```
+
+Decide si un operando del código intermedio es una constante entera potencia de 2 y, en ese caso, calcula cuántos desplazamientos equivalen a operar con ella.
+
+- **Parámetros:** `symbol` es el operando a analizar. `shift` es un parámetro de salida donde se guarda el exponente `k` tal que la constante es `2^k`.
+- **Retorna:** `true` si `symbol` es una constante entera potencia de 2; `false` en cualquier otro caso.
+
+La función devuelve `false` si el símbolo es `NULL`, no es una constante (`kind != CONSTANT`), no es de tipo `int`, o su valor es menor que 1 (el 0 y los negativos no son potencias de 2). Si pasa esos filtros, divide el valor por 2 mientras sea par, contando las divisiones en `*shift`. Es potencia de 2 si lo que queda al final es 1.
+
+| Constante | `*shift` | Resultado |
+|---|---|---|
+| 1 | 0 | `true` |
+| 8 | 3 | `true` |
+| 1024 | 10 | `true` |
+| 6 | 1 | `false` (queda 3) |
+| 0, -4 | sin cambios | `false` |
+
+El valor de `*shift` solo es significativo cuando la función devuelve `true`.
+
+#### 5.1.2. `writeDivisionSesgo`
+
+```c
+static void writeDivisionSesgo(FILE* out, int shift)
+```
+
+Escribe el assembly que calcula el **sesgo** necesario para dividir con signo por `2^shift`. Espera el dividendo en `%eax` y deja el sesgo en `%edx`.
+
+**Por qué hace falta.** `sarl` (desplazamiento aritmético a la derecha) redondea hacia menos infinito, pero la división de C redondea hacia cero. Con números positivos coinciden, pero con negativos no: `-17 / 4` es `-4` en C, mientras que `-17 >> 2` da `-5`. Para corregirlo, a los negativos se les suma `2^k - 1` antes de desplazar. Ese valor es el sesgo: vale 0 si el dividendo es positivo o cero, y `2^k - 1` si es negativo.
+
+**Cómo lo calcula:**
+
+```asm
+movl %eax, %edx        # copia el dividendo
+sarl $31, %edx         # edx = 0 si eax >= 0, o -1 (todos los bits en 1) si es negativo
+shrl $(32 - k), %edx   # edx = 0, o 2^k - 1 (shift lógico: rellena con ceros)
+```
+
+El `sarl $31` copia el bit de signo en los 32 bits. El `shrl` lo achica a `2^k - 1`; se usa la versión lógica porque debe rellenar con ceros. Con `sarl` seguiría valiendo `-1`.
+
+#### 5.1.3. Uso en `translateInstruction`
+
+**Multiplicación (`OP_MUL`).** Si algún operando es una constante potencia de 2, se carga el otro en `%eax` y se desplaza. Se prueba primero `arg2` y después `arg1`, porque la multiplicación es conmutativa. Si ninguno lo es, se genera `imull`. Por ejemplo, `x * 8`:
+
+```asm
+movl -4(%rbp), %eax
+shll $3, %eax
+movl %eax, -8(%rbp)
+```
+
+**División (`OP_DIV`).** Si el divisor es una constante potencia de 2, se carga el dividendo, se calcula el sesgo con `writeDivisionSesgo`, se suma y se desplaza. Si `shift` es 0 (dividir por 1) no se genera nada. Por ejemplo, `x / 4` con `x = -17`:
+
+```asm
+movl -4(%rbp), %eax    # eax = -17
+movl %eax, %edx
+sarl $31, %edx         # edx = -1
+shrl $30, %edx         # edx = 3  (2^2 - 1)
+addl %edx, %eax        # eax = -14
+sarl $2, %eax          # eax = -4  (igual que la división de C)
+movl %eax, -8(%rbp)
+```
+
+En la rama optimizada no se genera el chequeo de división por cero, porque una constante potencia de 2 es siempre mayor o igual a 1. Si el divisor no es una constante potencia de 2, se genera el camino habitual con `cmpl $0, %ecx` / `je .division_por_cero` / `cltd` / `idivl`.
+
+#### 5.1.4. Verificación
+
+Se comprobó que los resultados con y sin optimización coinciden para dividendos positivos y negativos, con un programa que imprime los resultados con `printInt`. Se confirmó en el assembly generado con `grep -nE "sarl|andl|idivl" output.s`: con `shifteos` activo aparecen `sarl`/`andl` y desaparecen los `idivl` de las operaciones sobre potencias de 2.
+
+#### 5.1.5. Comparación del código generado
+
+corrimos un programa [shifteosTest5.ctds] con 2 ciclos anidados de 10000 vueltas cada uno, con 4 multiplicaciones y 4 divisiones por potencias de 2 por vuelta. 
+
+El tiempo de ejecución pasó de 2,538 s a 0,643 s, unas 3 a 4 veces más rápido.
+
+| Corrida | Sin optimización | Con shifteos |
+|---|---|---|
+| 1 | 2,538 s | 0,648 s |
+| 2 | 2,539 s | 0,643 s |
+| 3 | 2,540 s | 0,642 s |
+| 4 | 2,531 s | 0,644 s |
+| 5 | 2,536 s | 0,642 s |
+| **Promedio** | **2,537 s** | **0,644 s** |
+
+## 6. Testing usando la metodologia Fuzzing
+
+### 6.1 La tecnica Fuzzing
 
 La tecnica Fuzzing se basa en generar muchisimas entradas de manera automatica (miles x min), pasarselas al programa y mirar como se porta:
 
@@ -466,7 +570,7 @@ Posibles comportamientos:
 - Que el programa se cuelgue
 - Que el programa devuelva un resultado incorrecto
 
-### 5.2 Tipos de fuzzing
+### 6.2 Tipos de fuzzing
 
 Para el uso de fuzzing de compiladores, no nos conviene utilizar un generador aleatorio que trabaje en gray box, mas bien podemos reutilizar la gramatica que ya tenemos incorporada en el compilador para definir una "estructura" asi no se cuelga de forma seguida
 
@@ -483,7 +587,7 @@ De esta manera **todos los programas son sintacticamente validos**. Asi logran l
 
 Ademas, el generador llevara su propia tabla de simbolo permitinedo asi que sea **sintacticamente validos**
 
-### 5.3 Proceso 
+### 6.3 Proceso 
 
 1) Generar un programa aleatorio
 
@@ -494,5 +598,3 @@ Ademas, el generador llevara su propia tabla de simbolo permitinedo asi que sea 
 Si los resultados difieren, encontramos un bug
 
 ![Process fuzzing in grammmar based input generation](fuzzing/fuzzing.png)
-
-##
