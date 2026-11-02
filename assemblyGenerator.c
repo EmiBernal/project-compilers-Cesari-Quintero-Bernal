@@ -221,7 +221,9 @@ void translateInstruction(FILE* out, Instruction* instruction){
 
         case OP_DIV:
             loadOperand(out, instruction->arg1, "%eax");
-            loadOperand(out, instruction->arg2, "%ecx");            
+            loadOperand(out, instruction->arg2, "%ecx");    
+            fprintf(out, "    cmpl $0, %%ecx\n");
+            fprintf(out, "    je .division_por_cero\n");        
             fprintf(out, "    cltd\n");
             fprintf(out, "    idivl %%ecx\n");
             storeResult(out, "%eax", instruction->result);
@@ -230,6 +232,8 @@ void translateInstruction(FILE* out, Instruction* instruction){
         case OP_MOD:
             loadOperand(out, instruction->arg1, "%eax");
             loadOperand(out, instruction->arg2, "%ecx");  
+            fprintf(out, "    cmpl $0, %%ecx\n");
+            fprintf(out, "    je .division_por_cero\n");
             fprintf(out, "    cltd\n");
             fprintf(out, "    idivl %%ecx\n");
             storeResult(out, "%edx", instruction->result);
@@ -340,6 +344,18 @@ void generateAssembly(IntermediateList* list, FILE* out){
         }
         node = node->next;
     }
+
+    fprintf(out, "    .section .rodata\n");
+    fprintf(out, ".mensaje_division_por_cero:\n");
+    fprintf(out, "    .string \"Error en tiempo de ejecucion: division por cero\\n\"\n");
+    fprintf(out, "    .text\n");
+    fprintf(out, ".division_por_cero:\n");
+    fprintf(out, "    leaq .mensaje_division_por_cero(%%rip), %%rdi\n");
+    fprintf(out, "    movq stderr@GOTPCREL(%%rip), %%rax\n");
+    fprintf(out, "    movq (%%rax), %%rsi\n");
+    fprintf(out, "    call fputs\n");
+    fprintf(out, "    movl $1, %%edi\n");
+    fprintf(out, "    call exit\n");
 
     fprintf(out, "    .section .note.GNU-stack,\"\",@progbits\n");
 }
