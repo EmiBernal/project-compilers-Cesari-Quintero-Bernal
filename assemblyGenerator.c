@@ -7,7 +7,8 @@
 #define MAX_CALL_ARGS 256
 #define FIRST_STACK_ARG_OFFSET 16
 
-const char* optimization = "shifteos";
+const char* optimization;
+//optimization = "nada";
 
 static const char* PARAM_REGISTERS[MAX_REGISTER_PARAMS] = {
     "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"
