@@ -1,6 +1,5 @@
 #include "assemblyGenerator.h"
 #include <stdlib.h>
-#define INT_SIZE_BYTES 4 //Cada valor ocupa 4 bytes
 #define STACK_ALIGNMENT_BYTES 16
 #define MAX_REGISTER_PARAMS 6
 #define STACK_ARG_SIZE_BYTES 8 
@@ -11,11 +10,6 @@ static const char* PARAM_REGISTERS[MAX_REGISTER_PARAMS] = {
     "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"
 };
 
-static bool needsStackSlot(Symbol* symbol);
-static void assignStackSlot(Symbol* symbol, int* frameSize);
-static void assignInstructionSlots(Instruction* instruction, int* frameSize);
-static int assignMethodSlots(InstructionNode* beginNode);
-static void assignParameterSlots(Symbol* method, int* frameSize);
 static int alignFrameSize(int frameSize);
 static void writePrologue(FILE* out, Symbol* method, int frameSize);
 static void writeEpilogue(FILE* out);
@@ -92,62 +86,7 @@ static void writeDataSection(FILE* out, IntermediateList* list){
     free(globals);
 }
 
-//Este metodo filtra qué necesita lugar en el stack
-static bool needsStackSlot(Symbol* symbol){
-    //Si es una variable local o parametro o temporario
-    if((symbol->kind == VAR && symbol->global == false) || symbol->kind == PARAM || symbol->kind == TEMPORARY){
-       return true;
-    }
-    return false;
-}
 
-//Este metodo asigna el lugar en el stack
-static void assignStackSlot(Symbol* symbol, int* frameSize){
-    if(symbol->offset != 0 || !needsStackSlot(symbol)){
-        return; 
-    }
-    *frameSize += INT_SIZE_BYTES; //Agranda el frame en 4 Bytes
-    symbol->offset = -*frameSize; //Devuelve el offset negativo pq la pila crece hacia abajo 
-}
-
-//Recibe instrucciones y utiliza el metodo que asigna el lugar en el stack
-static void assignInstructionSlots(Instruction* instruction, int* frameSize){
-    if(instruction->arg1 != NULL){
-        assignStackSlot(instruction->arg1, frameSize);
-    }
-    if(instruction->arg2 != NULL) {
-        assignStackSlot(instruction->arg2, frameSize);
-    }
-    if(instruction->result != NULL){
-        assignStackSlot(instruction->result, frameSize);
-    }
-}
-
-//Recorre un metodo par 
-static int assignMethodSlots(InstructionNode* beginNode){
-    int frameSize = 0;
-    InstructionNode* aux = beginNode; 
-    Symbol* method = beginNode->instruction->result;
-
-    //Primero van los parametros
-    assignParameterSlots(method, &frameSize); //Asignar lugar a los parametros
-    
-    while(aux != NULL && aux->instruction->opCode != OP_END_FUNC){
-        assignInstructionSlots(aux->instruction, &frameSize); 
-        aux = aux->next;
-    }
-
-    return frameSize;
-}
-
-static void assignParameterSlots(Symbol* method, int* frameSize){
-    ASTNode* parameters = method->params;
-    while(parameters != NULL){
-        Symbol* param = parameters->left->info;   // el símbolo del parámetro
-        assignStackSlot(param, frameSize);
-        parameters = parameters->right;           // el siguiente
-    }
-}
 
 static int alignFrameSize(int frameSize){
    return ((frameSize + STACK_ALIGNMENT_BYTES - 1) / STACK_ALIGNMENT_BYTES) * STACK_ALIGNMENT_BYTES;
@@ -161,7 +100,7 @@ static void copyParametersToStack(FILE* out, Symbol* method){
         Symbol* param = parameters->left->info;
         if(index < MAX_REGISTER_PARAMS){
             //Los primeros 6 llegan en registros
-            fprintf(out, "    movl %s, %d(%%rbp)\n", PARAM_REGISTERS[index], param->offset); //param->offset ya tiene valor pq assignMethodSlots corrio antes
+            fprintf(out, "    movl %s, %d(%%rbp)\n", PARAM_REGISTERS[index], param->offset); // param->offset lo asignamos desde la tabla de simbolos
         }else{
             //Del 7mo en adelante estan en la pila de quien llamo: 16(%rbp), 24(%rbp), 32(%rbp)...
             int stackOffset = FIRST_STACK_ARG_OFFSET + (index - MAX_REGISTER_PARAMS) * STACK_ARG_SIZE_BYTES;
@@ -178,9 +117,7 @@ static void writePrologue(FILE* out, Symbol* method, int frameSize){
     fprintf(out, "    .text\n");                       //Lo que sigue va en la seccion de codigo
     fprintf(out, "    .globl %s\n", method->name);     //el simbolo f es visible para el linker
     fprintf(out, "%s:\n", method->name);               //etiqueta que marca el inicio de la funcion
-    fprintf(out, "    pushq %%rbp\n");                 //guardo el frame pointer de quien me llamo
-    fprintf(out, "    movq %%rsp, %%rbp\n");           //mi frame empieza aca
-    fprintf(out, "    subq $%d, %%rsp\n", alignFrameSize(frameSize)); 
+    fprintf(out, "    enter $%d, $0\n", alignFrameSize(frameSize)); // coloca el valor actual del %rbp, almacena el valor actual de %rsp en %rbp y reduce el %rsp para dejar espacio a x variables locales
 }
 
 static void writeEpilogue(FILE* out){
@@ -239,6 +176,7 @@ static void writeCall(FILE* out, Instruction* instruction, Symbol** args, int ar
     for(int i = 0; i < argCount && i < MAX_REGISTER_PARAMS; i++){
         loadOperand(out, args[i], PARAM_REGISTERS[i]);
     }
+    fprintf(out, "    movl $0, %%eax\n");
     fprintf(out, "    call %s\n", instruction->arg1->name);
     //Quien llama saca de la pila todo lo que bajo (argumentos + relleno)
     if(relleno > 0){
@@ -283,7 +221,9 @@ void translateInstruction(FILE* out, Instruction* instruction){
 
         case OP_DIV:
             loadOperand(out, instruction->arg1, "%eax");
-            loadOperand(out, instruction->arg2, "%ecx");            
+            loadOperand(out, instruction->arg2, "%ecx");    
+            fprintf(out, "    cmpl $0, %%ecx\n");
+            fprintf(out, "    je .division_por_cero\n");        
             fprintf(out, "    cltd\n");
             fprintf(out, "    idivl %%ecx\n");
             storeResult(out, "%eax", instruction->result);
@@ -292,6 +232,8 @@ void translateInstruction(FILE* out, Instruction* instruction){
         case OP_MOD:
             loadOperand(out, instruction->arg1, "%eax");
             loadOperand(out, instruction->arg2, "%ecx");  
+            fprintf(out, "    cmpl $0, %%ecx\n");
+            fprintf(out, "    je .division_por_cero\n");
             fprintf(out, "    cltd\n");
             fprintf(out, "    idivl %%ecx\n");
             storeResult(out, "%edx", instruction->result);
@@ -301,8 +243,9 @@ void translateInstruction(FILE* out, Instruction* instruction){
             loadOperand(out, instruction->arg1, "%eax");
             loadOperand(out, instruction->arg2, "%ecx");
             fprintf(out, "    cmpl %%ecx, %%eax\n");
-            fprintf(out, "    setl %%al\n");
-            fprintf(out, "    movzbl %%al, %%eax\n");
+            fprintf(out, "    movl $0, %%eax\n");
+            fprintf(out, "    movl $1, %%ecx\n");
+            fprintf(out, "    cmovl %%ecx, %%eax\n");
             storeResult(out, "%eax", instruction->result);
             break;
 
@@ -310,8 +253,9 @@ void translateInstruction(FILE* out, Instruction* instruction){
             loadOperand(out, instruction->arg1, "%eax");
             loadOperand(out, instruction->arg2, "%ecx");
             fprintf(out, "    cmpl %%ecx, %%eax\n");
-            fprintf(out, "    setg %%al\n");
-            fprintf(out, "    movzbl %%al, %%eax\n");
+            fprintf(out, "    movl $0, %%eax\n");
+            fprintf(out, "    movl $1, %%ecx\n");
+            fprintf(out, "    cmovg %%ecx, %%eax\n");
             storeResult(out, "%eax", instruction->result);
             break;  
 
@@ -319,8 +263,9 @@ void translateInstruction(FILE* out, Instruction* instruction){
             loadOperand(out, instruction->arg1, "%eax");
             loadOperand(out, instruction->arg2, "%ecx");
             fprintf(out, "    cmpl %%ecx, %%eax\n");
-            fprintf(out, "    sete %%al\n");
-            fprintf(out, "    movzbl %%al, %%eax\n");
+            fprintf(out, "    movl $0, %%eax\n");
+            fprintf(out, "    movl $1, %%ecx\n");
+            fprintf(out, "    cmove %%ecx, %%eax\n");
             storeResult(out, "%eax", instruction->result);
             break;
 
@@ -388,17 +333,29 @@ void generateAssembly(IntermediateList* list, FILE* out){
     InstructionNode* node = list->head;
     while(node != NULL){
         if(node->instruction->opCode == OP_BEGIN_FUNC){
-            int frameSize = assignMethodSlots(node); //Calcular slots
-            writePrologue(out, node->instruction->result, frameSize); //Escribo el prologo
+            int frameSize = node->instruction->result->frameSize; 
+            writePrologue(out, node->instruction->result, frameSize); 
             copyParametersToStack(out, node->instruction->result);
         } else if(node->instruction->opCode == OP_END_FUNC) {
             fprintf(out, "    xorl %%eax, %%eax\n"); //Devuelvo 0 por defecto
             writeEpilogue(out);
         }else {
-            translateInstruction(out, node->instruction); //Traducir instrucciones
+            translateInstruction(out, node->instruction); 
         }
         node = node->next;
     }
+
+    fprintf(out, "    .section .rodata\n");
+    fprintf(out, ".mensaje_division_por_cero:\n");
+    fprintf(out, "    .string \"Error en tiempo de ejecucion: division por cero\\n\"\n");
+    fprintf(out, "    .text\n");
+    fprintf(out, ".division_por_cero:\n");
+    fprintf(out, "    leaq .mensaje_division_por_cero(%%rip), %%rdi\n");
+    fprintf(out, "    movq stderr@GOTPCREL(%%rip), %%rax\n");
+    fprintf(out, "    movq (%%rax), %%rsi\n");
+    fprintf(out, "    call fputs\n");
+    fprintf(out, "    movl $1, %%edi\n");
+    fprintf(out, "    call exit\n");
 
     fprintf(out, "    .section .note.GNU-stack,\"\",@progbits\n");
 }

@@ -1,0 +1,14 @@
+
+extern void printInt(int x);
+
+int fact(int n) {
+    if (n < 2) { return 1; }
+    return n * fact(n - 1);
+}
+
+int main() {
+    int x;
+    x = fact(fact(3));
+    printInt(x);
+    return x;
+}
