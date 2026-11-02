@@ -8,5 +8,9 @@ ctds_parser
 
 # Assembly generado y programas compilados a partir de el
 output.s
+*.s
+*.out
+*.sint
 prog
+hola
 *.o

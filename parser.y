@@ -6,12 +6,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "cli.h"
 #include "ast.h"
 #include "semantic.h"
 #include "intermediateCode.h"
 #include "assemblyGenerator.h"
 
-
+#ifndef RUNTIME_PATH
+#define RUNTIME_PATH "runtime.c"
+#endif
 
 extern FILE *yyin;
 extern int yylineno;
@@ -159,39 +162,121 @@ void yyerror(const char *s){
 }
 
 int main(int argc, char **argv){
-    if(argc > 1){
-        yyin = fopen(argv[1],"r");
-        if(!yyin){
-            fprintf(stderr, "No se pudo abrir el archivo %s\n", argv[1]);
-            return 1;
-        }
+    Options opts;
+    if(parseArgs(argc, argv, &opts) != 0){
+        printUsage(argv[0]);
+        return 1;
     }
 
-    if(yyparse() == 0 && semanticAnalysis(root) == 0){
-        printAST(root, 0); //Deberiamos evaluar en cada caso si mostrarlo o no
-        printf("Programa aceptado correctamente.\n");
+    yyin = fopen(opts.input, "r");
+    if(!yyin){
+        fprintf(stderr, "No se pudo abrir el archivo %s\n", opts.input);
+        return 1;
+    }
 
-        IntermediateList irList;
-        initIntermediateList(&irList);
-        
-        generateMidRepresentation(root, &irList);
-        printIntermediateList(&irList);
-        FILE* assemblyFile = fopen("output.s", "w");
-        if(assemblyFile == NULL){
-            fprintf(stderr, "No se pudo crear output.s\n");
-        } else {
-            generateAssembly(&irList, assemblyFile);
-            fclose(assemblyFile);
-            printf("Creado output.s.\n");
+    //Pasa a 0 solo si todo sale bien. Un unico return al final asegura que siempre se cierre yyin
+    int resultado = 1;
+
+    if(yyparse() == 0 && semanticAnalysis(root) == 0){
+
+        if(opts.debug){
+            printAST(root, 0, stdout);
+            printf("AST generado correctamente.\n");
         }
 
-        freeIntermediateList(&irList);
+        if(opts.target == TARGET_PARSE){
+            char *sintName = outputName(opts.input, NULL, ".sint");
+
+            FILE* sintFile = NULL;
+            if(sintName != NULL){
+                sintFile = fopen(sintName, "w");
+            }
+
+            if(sintFile == NULL){
+                if(sintName != NULL){
+                    fprintf(stderr, "No se pudo crear %s\n", sintName);
+                } else {
+                    fprintf(stderr, "No se pudo crear el archivo .sint\n");
+                }
+            } else {
+                printAST(root, 0, sintFile);
+                fclose(sintFile);
+                if(opts.debug){
+                    printf("Creado %s.\n", sintName);
+                }
+                resultado = 0;
+            }
+            free(sintName);
+        } else {
+            IntermediateList irList;
+            initIntermediateList(&irList);
+            generateMidRepresentation(root, &irList);
+
+            if(opts.debug){
+                printIntermediateList(&irList);
+                printf("Codigo intermedio generado correctamente.\n");
+            }
+
+            //-o solo renombra el ejecutable, por eso el .s no lo usa
+            char *assemblyName = outputName(opts.input, NULL, ".s");
+
+            //Si outputName no consiguio memoria no hay nombre, y fopen(NULL) no se puede llamar
+            FILE* assemblyFile = NULL;
+            if(assemblyName != NULL){
+                assemblyFile = fopen(assemblyName, "w");
+            }
+
+            if(assemblyFile == NULL){
+                if(assemblyName != NULL){
+                    fprintf(stderr, "No se pudo crear %s\n", assemblyName);
+                } else {
+                    fprintf(stderr, "No se pudo crear el archivo .s\n");
+                }
+            } else {
+                generateAssembly(&irList, assemblyFile);
+                fclose(assemblyFile);
+                if(opts.debug){
+                    printf("Creado %s.\n", assemblyName);
+                }
+
+                if(opts.target == TARGET_EXEC){
+                    //Sin -target se sigue hasta el ejecutable: gcc ensambla el .s y lo linkea con runtime.c
+                    //Aca si se usa -o: si se paso, es el nombre del ejecutable; si no, nombreArchivo.out
+                    char *execName = outputName(opts.input, opts.output, ".out");
+                    if(execName == NULL){
+                        fprintf(stderr, "No se pudo generar el nombre del ejecutable\n");
+                    } else {
+                        //Las comillas simples evitan que la shell separe nombres con espacios
+                        char command[1024];
+                        snprintf(command, sizeof(command), "gcc -o '%s' '%s' '%s'", execName, assemblyName, RUNTIME_PATH);
+                        if(opts.debug){
+                            printf("Ejecutando: %s\n", command);
+                        }
+                        //system devuelve 0 si gcc termino bien
+                        if(system(command) != 0){
+                            fprintf(stderr, "No se pudo generar el ejecutable %s\n", execName);
+                        } else {
+                            if(opts.debug){
+                                printf("Creado %s.\n", execName);
+                            }
+                            resultado = 0;
+                        }
+                        free(execName);
+                    }
+                } else {
+                    //Con -target assembly la compilacion termina en el .s
+                    resultado = 0;
+                }
+            }
+            free(assemblyName);
+
+            freeIntermediateList(&irList);
+        }
+
         freeAST(root);
     }
 
-    if(argc > 1 && yyin != NULL){
-        fclose(yyin);
-    }
+    fclose(yyin);
 
-    return 0;
+    return resultado;
 }
