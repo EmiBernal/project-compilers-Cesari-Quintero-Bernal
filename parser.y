@@ -210,7 +210,10 @@ int main(int argc, char **argv){
                 resultado = 0;
             }
             fclose(lexFile);
-            if(opts.debug){
+            //Si hubo un error lexico se borra el .lex a medio escribir, como en las demas etapas
+            if(resultado != 0){
+                remove(lexName);
+            } else if(opts.debug){
                 printf("Creado %s.\n", lexName);
             }
         }
