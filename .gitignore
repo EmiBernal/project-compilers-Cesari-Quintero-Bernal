@@ -11,6 +11,7 @@ output.s
 *.s
 *.out
 *.sint
+*.ci
 prog
 hola
 *.o

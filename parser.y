@@ -68,22 +68,22 @@ static void applyDeclType(ASTNode* idList, DataType type) {
 
 program:  var_decls method_decls {root = createProgNode($1, $2); $$ = root;}
     | method_decls {root = createProgNode(NULL, $1); $$ = root;}
-    ; 
-type: INT {$$ = TYPE_INT;} 
+    ;
+type: INT {$$ = TYPE_INT;}
     | BOOLEAN {$$ = TYPE_BOOL;}
     | FLOAT {$$ = TYPE_FLOAT;}
     ;
 
-var_decls: var_decls var_decl {$$ = enlistSeqNode($1, $2);} 
+var_decls: var_decls var_decl {$$ = enlistSeqNode($1, $2);}
         | var_decl {$$ = createSeqNode($1, NULL);}
         ;
 
-method_decls: method_decls method_decl {$$ = enlistSeqNode($1, $2);} 
+method_decls: method_decls method_decl {$$ = enlistSeqNode($1, $2);}
             | method_decl {$$ = createSeqNode($1, NULL);}
             ;
 var_decl: type id_list SEMI {applyDeclType($2, $1); $$ = $2;}
 ;
-id_list: ID {$$ = createSeqNode(createIdNode($1), NULL);} 
+id_list: ID {$$ = createSeqNode(createIdNode($1), NULL);}
     | id_list COMMA ID {$$ = enlistSeqNode($1, createIdNode($3));}
     ;
 
@@ -97,7 +97,7 @@ extern_decl: EXTERN type ID LPAREN params RPAREN SEMI {$$ = createExternNode($2,
     | EXTERN VOID ID LPAREN params RPAREN SEMI {$$ = createExternNode(TYPE_VOID, $3, $5);}
     ;
 
-params: %empty {$$ = NULL;} 
+params: %empty {$$ = NULL;}
     | param_list {$$ = $1;}
     ;
 param_list: type ID {$$ = createSeqNode(createParamNode($1, $2), NULL); }
@@ -127,7 +127,7 @@ statement
 method_call: ID LPAREN args RPAREN {$$ = createCallNode($1, $3);}
     ;
 
-args: %empty {$$ = NULL;} 
+args: %empty {$$ = NULL;}
     | arg_list {$$ = $1;}
     ;
 arg_list: expr {$$ = createSeqNode($1, NULL);}
@@ -213,62 +213,87 @@ int main(int argc, char **argv){
             generateMidRepresentation(root, &irList);
 
             if(opts.debug){
-                printIntermediateList(&irList);
+                printIntermediateList(&irList, stdout);
                 printf("Codigo intermedio generado correctamente.\n");
             }
 
-            //-o solo renombra el ejecutable, por eso el .s no lo usa
-            char *assemblyName = outputName(opts.input, NULL, ".s");
+            if(opts.target == TARGET_CODINTER){
+                char *ciName = outputName(opts.input, NULL, ".ci");
 
-            //Si outputName no consiguio memoria no hay nombre, y fopen(NULL) no se puede llamar
-            FILE* assemblyFile = NULL;
-            if(assemblyName != NULL){
-                assemblyFile = fopen(assemblyName, "w");
-            }
-
-            if(assemblyFile == NULL){
-                if(assemblyName != NULL){
-                    fprintf(stderr, "No se pudo crear %s\n", assemblyName);
-                } else {
-                    fprintf(stderr, "No se pudo crear el archivo .s\n");
-                }
-            } else {
-                generateAssembly(&irList, assemblyFile);
-                fclose(assemblyFile);
-                if(opts.debug){
-                    printf("Creado %s.\n", assemblyName);
+                FILE* ciFile = NULL;
+                if(ciName != NULL){
+                    ciFile = fopen(ciName, "w");
                 }
 
-                if(opts.target == TARGET_EXEC){
-                    //Sin -target se sigue hasta el ejecutable: gcc ensambla el .s y lo linkea con runtime.c
-                    //Aca si se usa -o: si se paso, es el nombre del ejecutable; si no, nombreArchivo.out
-                    char *execName = outputName(opts.input, opts.output, ".out");
-                    if(execName == NULL){
-                        fprintf(stderr, "No se pudo generar el nombre del ejecutable\n");
+                if(ciFile == NULL){
+                    if(ciName != NULL){
+                        fprintf(stderr, "No se pudo crear %s\n", ciName);
                     } else {
-                        //Las comillas simples evitan que la shell separe nombres con espacios
-                        char command[1024];
-                        snprintf(command, sizeof(command), "gcc -o '%s' '%s' '%s'", execName, assemblyName, RUNTIME_PATH);
-                        if(opts.debug){
-                            printf("Ejecutando: %s\n", command);
-                        }
-                        //system devuelve 0 si gcc termino bien
-                        if(system(command) != 0){
-                            fprintf(stderr, "No se pudo generar el ejecutable %s\n", execName);
-                        } else {
-                            if(opts.debug){
-                                printf("Creado %s.\n", execName);
-                            }
-                            resultado = 0;
-                        }
-                        free(execName);
+                        fprintf(stderr, "No se pudo crear el archivo .ci\n");
                     }
                 } else {
-                    //Con -target assembly la compilacion termina en el .s
+                    printIntermediateList(&irList, ciFile);
+                    fclose(ciFile);
+                    if(opts.debug){
+                        printf("Creado %s.\n", ciName);
+                    }
                     resultado = 0;
                 }
+                free(ciName);
+            } else {
+                //-o solo renombra el ejecutable, por eso el .s no lo usa
+                char *assemblyName = outputName(opts.input, NULL, ".s");
+
+                //Si outputName no consiguio memoria no hay nombre, y fopen(NULL) no se puede llamar
+                FILE* assemblyFile = NULL;
+                if(assemblyName != NULL){
+                    assemblyFile = fopen(assemblyName, "w");
+                }
+
+                if(assemblyFile == NULL){
+                    if(assemblyName != NULL){
+                        fprintf(stderr, "No se pudo crear %s\n", assemblyName);
+                    } else {
+                        fprintf(stderr, "No se pudo crear el archivo .s\n");
+                    }
+                } else {
+                    generateAssembly(&irList, assemblyFile);
+                    fclose(assemblyFile);
+                    if(opts.debug){
+                        printf("Creado %s.\n", assemblyName);
+                    }
+
+                    if(opts.target == TARGET_EXEC){
+                        //Sin -target se sigue hasta el ejecutable: gcc ensambla el .s y lo linkea con runtime.c
+                        //Aca si se usa -o: si se paso, es el nombre del ejecutable; si no, nombreArchivo.out
+                        char *execName = outputName(opts.input, opts.output, ".out");
+                        if(execName == NULL){
+                            fprintf(stderr, "No se pudo generar el nombre del ejecutable\n");
+                        } else {
+                            //Las comillas simples evitan que la shell separe nombres con espacios
+                            char command[1024];
+                            snprintf(command, sizeof(command), "gcc -o '%s' '%s' '%s'", execName, assemblyName, RUNTIME_PATH);
+                            if(opts.debug){
+                                printf("Ejecutando: %s\n", command);
+                            }
+                            //system devuelve 0 si gcc termino bien
+                            if(system(command) != 0){
+                                fprintf(stderr, "No se pudo generar el ejecutable %s\n", execName);
+                            } else {
+                                if(opts.debug){
+                                    printf("Creado %s.\n", execName);
+                                }
+                                resultado = 0;
+                            }
+                            free(execName);
+                        }
+                    } else {
+                        //Con -target assembly la compilacion termina en el .s
+                        resultado = 0;
+                    }
+                }
+                free(assemblyName);
             }
-            free(assemblyName);
 
             freeIntermediateList(&irList);
         }
