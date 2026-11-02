@@ -180,3 +180,11 @@ Runner para poder juntar la cantidad de casos a probar, las semillas y la profun
 Cuando el arbol tiene expresiones que guarda valores chicos, podemos notar que los tests suelen funcionar y devolver ok en su mayoria
 
 ## Compartimientos indefinidos
+El testing diferencial supone que **gcc da la respuesta correcta**. Pero el estandar de C dice que algunas operaciones tienen *comportamiento indefinido*
+
+Por lo tanto, el generador solo puede producir programas sin comportamientos indefinidos
+
+### Division por cero
+Cuando en gcc trabajamos con divisiones por cero, devuelve 136. Ese numero es el codigo de salida que devuelve el compilador cuando el programa se cierra de forma abruta. 
+
+136 = 128 + 8 (señal Floating Point Exception)
