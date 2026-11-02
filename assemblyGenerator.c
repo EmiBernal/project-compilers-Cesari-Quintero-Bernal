@@ -1,10 +1,13 @@
 #include "assemblyGenerator.h"
 #include <stdlib.h>
+#include <string.h>
 #define STACK_ALIGNMENT_BYTES 16
 #define MAX_REGISTER_PARAMS 6
 #define STACK_ARG_SIZE_BYTES 8 
 #define MAX_CALL_ARGS 256
 #define FIRST_STACK_ARG_OFFSET 16
+
+const char* optimization = "shifteos";
 
 static const char* PARAM_REGISTERS[MAX_REGISTER_PARAMS] = {
     "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"
@@ -188,6 +191,23 @@ static void writeCall(FILE* out, Instruction* instruction, Symbol** args, int ar
     }
 }
 
+//Devuelve true si el simbolo es una constante entera que es potencia de 2 (1, 2, 4, 8, ...)
+static bool isPowerOfTwoConstant(Symbol* symbol, int* shift){
+    if(symbol == NULL || symbol->kind != CONSTANT || symbol->type != TYPE_INT){
+        return false;
+    }
+    int n = symbol->value.ival;
+    if(n < 1){
+        return false;
+    }
+    *shift = 0; //acá guardamos cuantos shift son necesarios
+    while(n % 2 == 0){
+        n = n / 2;
+        (*shift)++;
+    }
+    return n == 1;
+}
+
 void translateInstruction(FILE* out, Instruction* instruction){
     static Symbol* callArgs[MAX_CALL_ARGS]; //Argumentos de la llamada actual, en orden
     static int paramCount = 0;
@@ -213,9 +233,27 @@ void translateInstruction(FILE* out, Instruction* instruction){
             break;
 
         case OP_MUL:
-            loadOperand(out, instruction->arg1, "%eax");
-            loadOperand(out, instruction->arg2, "%ecx");
-            fprintf(out, "    imull %%ecx, %%eax\n");
+            int shift;
+            if (optimization != NULL && strcmp(optimization, "shifteos") == 0) { //aca hay que cambiar cuando tengamos los parametros x consola
+                if (isPowerOfTwoConstant(instruction->arg2, &shift)) {
+                    loadOperand(out, instruction->arg1, "%eax");
+                    fprintf(out, "    shll $%d, %%eax\n", shift);
+                } else {
+                    if (isPowerOfTwoConstant(instruction->arg1, &shift)) {
+                        loadOperand(out, instruction->arg2, "%eax");
+                        fprintf(out, "    shll $%d, %%eax\n", shift);
+                    }else{
+                        loadOperand(out, instruction->arg1, "%eax");
+                        loadOperand(out, instruction->arg2, "%ecx");
+                        fprintf(out, "    imull %%ecx, %%eax\n");
+                    }
+                }
+            } else {
+                loadOperand(out, instruction->arg1, "%eax");
+                loadOperand(out, instruction->arg2, "%ecx");
+                fprintf(out, "    imull %%ecx, %%eax\n");
+            }
+
             storeResult(out, "%eax", instruction->result);
             break;
 
