@@ -1,0 +1,12 @@
+# Archivos generados por flex y bison
+lex.yy.c
+parser.tab.c
+parser.tab.h
+
+# Ejecutable del compilador
+ctds_parser
+
+# Assembly generado y programas compilados a partir de el
+output.s
+prog
+*.o

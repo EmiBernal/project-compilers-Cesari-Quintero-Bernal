@@ -1,0 +1,18 @@
+// Recursion con argumentos en la pila, llamada dentro de un while (la pila se limpia en cada vuelta). Resultado esperado: 15
+int f(int a, int b, int c, int d, int e, int g, int h, int i, int n) {
+    if (n < 1) {
+        return i;
+    }
+    return f(a, b, c, d, e, g, h, i + 1, n - 1);
+}
+
+int main() {
+    int k, s;
+    k = 0;
+    s = 0;
+    while (k < 3) {
+        s = s + f(1, 2, 3, 4, 5, 6, 7, k, 4);
+        k = k + 1;
+    }
+    return s;
+}

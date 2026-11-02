@@ -1,0 +1,7 @@
+// Variable global en la seccion .data. Resultado esperado: 8
+int g;
+
+int main() {
+    g = 4;
+    return g * 2;
+}

@@ -25,6 +25,7 @@ id              {alpha}{alpha_num}*
 %%
 [ \t]+      { }
 \n          { }
+\r\n        { }
 "//".*      { }
 
 "/*" {BEGIN COMMENTS;}
@@ -65,6 +66,7 @@ id              {alpha}{alpha_num}*
 "||"        {return OR;}
 "!"         {return NOT;}
 ","         {return COMMA;}
+"extern"    {return EXTERN;}
 
 {float_literal} {
     yylval.fnum = atof(yytext);

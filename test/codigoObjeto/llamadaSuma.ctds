@@ -1,0 +1,15 @@
+// Llamada con dos parametros. Resultado esperado: 8
+int suma(int a, int b) {
+    int c;
+    c = 2;
+    return a + b;
+}
+
+
+int main() {
+    int d;
+    int e;
+    d = 3;
+    e = 4;
+    return suma(d, e);
+}
