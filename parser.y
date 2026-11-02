@@ -17,6 +17,7 @@
 #endif
 
 extern FILE *yyin;
+extern char *yytext;
 extern int yylineno;
 
 int yylex(void);
@@ -161,6 +162,21 @@ void yyerror(const char *s){
     fprintf(stderr, "Error de sintaxis en la linea %d: %s\n", yylineno, s);
 }
 
+static int scanTokens(FILE *out){
+    int tok;
+    while((tok = yylex()) != 0){
+        if(tok < 0){
+            return 1;
+        }
+        fprintf(out, "%d %s %s\n", yylineno, yysymbol_name(YYTRANSLATE(tok)), yytext);
+        if(tok == ID){
+            free(yylval.string);
+        }
+    }
+    return 0;
+}
+
+
 int main(int argc, char **argv){
     Options opts;
     if(parseArgs(argc, argv, &opts) != 0){
@@ -177,7 +193,29 @@ int main(int argc, char **argv){
     //Pasa a 0 solo si todo sale bien. Un unico return al final asegura que siempre se cierre yyin
     int resultado = 1;
 
-    if(yyparse() == 0 && semanticAnalysis(root) == 0){
+    if(opts.target == TARGET_SCAN){
+        char *lexName = outputName(opts.input, NULL, ".lex");
+        FILE *lexFile = NULL;
+        if(lexName != NULL){
+            lexFile = fopen(lexName, "w");
+        }
+        if(lexFile == NULL){
+            if(lexName != NULL){
+                fprintf(stderr, "No se pudo crear %s\n", lexName);
+            } else {
+                fprintf(stderr, "No se pudo crear el archivo .lex\n");
+            }
+        } else {
+            if(scanTokens(lexFile) == 0){
+                resultado = 0;
+            }
+            fclose(lexFile);
+            if(opts.debug){
+                printf("Creado %s.\n", lexName);
+            }
+        }
+        free(lexName);
+    } else if(yyparse() == 0 && semanticAnalysis(root) == 0){
 
         if(opts.debug){
             printAST(root, 0, stdout);

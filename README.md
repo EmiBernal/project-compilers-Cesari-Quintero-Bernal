@@ -31,11 +31,32 @@ El archivo tiene que terminar en `.ctds` y no puede empezar con `-`. Las opcione
 | Opción | Qué hace |
 |--------|----------|
 | `-debug` | Muestra el AST, el código intermedio y los mensajes de cada etapa |
-| `-target <etapa>` | Compila hasta la etapa dada: `scan`, `parse`, `codinter` o `assembly` (por ahora solo funciona `assembly`) |
+| `-target <etapa>` | Compila hasta la etapa dada y genera solo su archivo (ver tabla abajo) |
 | `-o <salida>` | Le cambia el nombre al ejecutable (por defecto `nombreArchivo.out`) |
 | `-opt all` | Activa todas las optimizaciones *(en desarrollo)* |
 
 Si la compilación sale bien **no se imprime nada** (salvo con `-debug`) y se generan `nombreArchivo.s` y el ejecutable `nombreArchivo.out` **en la carpeta desde donde se ejecuta el compilador** (como gcc), no en la carpeta del `.ctds`. Los errores se muestran siempre.
+
+### Etapas (`-target`)
+Cada etapa deja su resultado en un archivo con su extensión, en la carpeta actual:
+
+| Etapa | Genera | Contenido |
+|-------|--------|-----------|
+| `scan` | `nombreArchivo.lex` | Los tokens, uno por línea: `linea NOMBRE texto` (por ejemplo `2 ID g`) |
+| `parse` | `nombreArchivo.sint` | El AST, después del análisis semántico |
+| `codinter` | `nombreArchivo.ci` | El código intermedio |
+| `assembly` | `nombreArchivo.s` | El assembly x86-64 |
+| *(sin `-target`)* | `nombreArchivo.s` + `nombreArchivo.out` | El assembly y el ejecutable |
+
+```bash
+./ctds_parser -target scan test/codigoObjeto/globalSimple.ctds       # genera globalSimple.lex
+./ctds_parser -target parse test/codigoObjeto/globalSimple.ctds      # genera globalSimple.sint
+./ctds_parser -target codinter test/codigoObjeto/globalSimple.ctds   # genera globalSimple.ci
+```
+
+- `scan` solo corre el lexer (no parsea): si encuentra un carácter inválido muestra el error y devuelve 1.
+- `parse` incluye el análisis semántico: si el programa tiene errores de tipos, no se genera el `.sint`.
+- `-o` solo cambia el nombre del ejecutable; los archivos de las etapas siempre se llaman `nombreArchivo.<extension>`.
 
 Para saber si compiló, mirá el código de salida con `echo $?`: `0` es que salió bien y `1` que hubo algún error (de sintaxis, semántico, o en las opciones).
 
