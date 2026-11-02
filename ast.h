@@ -2,6 +2,7 @@
 #define AST_H
 
 #include <stdbool.h>
+#include <stdio.h>
 
 typedef enum {
     TYPE_INT,
@@ -119,7 +120,7 @@ ASTNode* createProgNode(ASTNode* globals, ASTNode* methods);
 ASTNode* createExternNode(DataType type, char* id_name, ASTNode* params);
 
 //Funcion para ver el arbol AST
-void printAST(ASTNode* node, int level);
+void printAST(ASTNode* node, int level, FILE* out);
 
 //Funcion para liberar la memoria del arbol
 void freeAST(ASTNode* node);
