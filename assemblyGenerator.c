@@ -208,6 +208,12 @@ static bool isPowerOfTwoConstant(Symbol* symbol, int* shift){
     return n == 1;
 }
 
+static void writeDivisionSesgo(FILE* out, int shift){
+    fprintf(out, "    movl %%eax, %%edx\n");
+    fprintf(out, "    sarl $31, %%edx\n");              //edx = 0 si eax >= 0, todos 1 si es negativo
+    fprintf(out, "    shrl $%d, %%edx\n", 32 - shift);  //edx = 0 o 2^k - 1
+}
+
 void translateInstruction(FILE* out, Instruction* instruction){
     static Symbol* callArgs[MAX_CALL_ARGS]; //Argumentos de la llamada actual, en orden
     static int paramCount = 0;
@@ -232,7 +238,7 @@ void translateInstruction(FILE* out, Instruction* instruction){
             storeResult(out, "%eax", instruction->result);
             break;
 
-        case OP_MUL:
+        case OP_MUL:{
             int shift;
             if (optimization != NULL && strcmp(optimization, "shifteos") == 0) { //aca hay que cambiar cuando tengamos los parametros x consola
                 if (isPowerOfTwoConstant(instruction->arg2, &shift)) {
@@ -256,16 +262,30 @@ void translateInstruction(FILE* out, Instruction* instruction){
 
             storeResult(out, "%eax", instruction->result);
             break;
+        }
 
-        case OP_DIV:
-            loadOperand(out, instruction->arg1, "%eax");
-            loadOperand(out, instruction->arg2, "%ecx");    
-            fprintf(out, "    cmpl $0, %%ecx\n");
-            fprintf(out, "    je .division_por_cero\n");        
-            fprintf(out, "    cltd\n");
-            fprintf(out, "    idivl %%ecx\n");
-            storeResult(out, "%eax", instruction->result);
+        case OP_DIV: {
+            int shift;
+            if (optimization != NULL && strcmp(optimization, "shifteos") == 0
+                && isPowerOfTwoConstant(instruction->arg2, &shift)) {
+                loadOperand(out, instruction->arg1, "%eax");
+                if (shift > 0) {
+                    writeDivisionSesgo(out, shift);
+                    fprintf(out, "    addl %%edx, %%eax\n");   //si es negativo, suma 2^k - 1
+                    fprintf(out, "    sarl $%d, %%eax\n", shift);
+                }
+                storeResult(out, "%eax", instruction->result);
+            } else {
+                loadOperand(out, instruction->arg1, "%eax");
+                loadOperand(out, instruction->arg2, "%ecx");
+                fprintf(out, "    cmpl $0, %%ecx\n");
+                fprintf(out, "    je .division_por_cero\n");
+                fprintf(out, "    cltd\n");
+                fprintf(out, "    idivl %%ecx\n");
+                storeResult(out, "%eax", instruction->result);
+            }
             break;
+        }
 
         case OP_MOD:
             loadOperand(out, instruction->arg1, "%eax");
