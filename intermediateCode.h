@@ -26,7 +26,7 @@ void addInstruction(IntermediateList* list, SymbolType opCode, Symbol* arg1, Sym
 Symbol* createTempSymbol(DataType type);
 Symbol* createLabelSymbol(void);
 const char* opCodeToString(SymbolType opCode);
-void printIntermediateList(IntermediateList* list);
+void printIntermediateList(IntermediateList* list, FILE* out);
 Symbol* generateMidRepresentation(ASTNode* node, IntermediateList* list);
 void freeIntermediateList(IntermediateList* list);
 

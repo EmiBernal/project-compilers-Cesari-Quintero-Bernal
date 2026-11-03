@@ -8,10 +8,14 @@ ctds_parser
 
 # Assembly generado y programas compilados a partir de el
 output.s
+*.lex
+*.s
+*.ass
+*.sem
+*.out
+*.sint
+*.ci
 prog
+hola
 *.o
 
-# Archivos para las pruebas fuzzer
-ctds.s
-prog_ctds
-prog_gcc

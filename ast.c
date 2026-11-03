@@ -302,99 +302,99 @@ static const char* typeToString(DataType type) {
 }
 
 //Impresion del arbol (level = profundidad, para indentar)
-void printAST(ASTNode* node, int level){
+void printAST(ASTNode* node, int level, FILE* out){
     if(node == NULL){
         return;
     }
 
     //Por cada nivel imprimo dos espacios para indentar
     for(int i = 0; i < level; i++){
-        printf("  ");
+        fprintf(out, "  ");
     }
 
     //Los nodos sin simbolo (SEQ, IF, WHILE, etc.) tienen info == NULL,
     //por eso solo se accede a info en los casos que siempre lo tienen
     switch(node->type){
         case NODE_NUM:
-            printf("NUM: %d\n", node->info->value.ival);
+            fprintf(out, "NUM: %d\n", node->info->value.ival);
             break;
 
         case NODE_FLOAT:
-            printf("FLOAT: %g\n", node->info->value.fval);
+            fprintf(out, "FLOAT: %g\n", node->info->value.fval);
             break;
 
         case NODE_BOOL:
-            printf("BOOL: %s\n", node->info->value.bval ? "true" : "false");
+            fprintf(out, "BOOL: %s\n", node->info->value.bval ? "true" : "false");
             break;
 
         case NODE_ID:
-            printf("ID: %s\n", node->info->name);
+            fprintf(out, "ID: %s\n", node->info->name);
             break;
 
         case NODE_OP:
-            printf("OP: %s\n", opToString(node->info->kind));
+            fprintf(out, "OP: %s\n", opToString(node->info->kind));
             break;
 
         case NODE_UNOP:
-            printf("UNOP: %s\n", opToString(node->info->kind));
+            fprintf(out, "UNOP: %s\n", opToString(node->info->kind));
             break;
 
         case NODE_CALL:
-            printf("CALL: %s\n", node->info->name);
+            fprintf(out, "CALL: %s\n", node->info->name);
             break;
 
         case NODE_DECL:
-            printf("DECL: %s %s\n", typeToString(node->info->type), node->info->name);
+            fprintf(out, "DECL: %s %s\n", typeToString(node->info->type), node->info->name);
             break;
 
         case NODE_PARAM:
-            printf("PARAM: %s %s\n", typeToString(node->info->type), node->info->name);
+            fprintf(out, "PARAM: %s %s\n", typeToString(node->info->type), node->info->name);
             break;
 
         case NODE_METHOD:
-            printf("METHOD: %s %s\n", typeToString(node->info->type), node->info->name);
+            fprintf(out, "METHOD: %s %s\n", typeToString(node->info->type), node->info->name);
             break;
 
         case NODE_EXTERN: 
-            printf("METHOD EXTERN: %s %s\n", typeToString(node->info->type), node->info->name);
+            fprintf(out, "METHOD EXTERN: %s %s\n", typeToString(node->info->type), node->info->name);
             break;
 
         case NODE_ASSIGN:
-            printf("ASSIGN\n");
+            fprintf(out, "ASSIGN\n");
             break;
 
         case NODE_IF:
-            printf("IF\n");
+            fprintf(out, "IF\n");
             break;
 
         case NODE_WHILE:
-            printf("WHILE\n");
+            fprintf(out, "WHILE\n");
             break;
 
         case NODE_RETURN:
-            printf("RETURN\n");
+            fprintf(out, "RETURN\n");
             break;
 
         case NODE_BLOCK:
-            printf("BLOCK\n");
+            fprintf(out, "BLOCK\n");
             break;
 
         case NODE_SEQ:
-            printf("SEQ\n");
+            fprintf(out, "SEQ\n");
             break;
 
         case NODE_PROG:
-            printf("PROGRAM\n");
+            fprintf(out, "PROGRAM\n");
             break;
 
         default:
-            printf("NODO DESCONOCIDO\n");
+            fprintf(out, "NODO DESCONOCIDO\n");
     }
 
     //Recursivamente imprimo los hijos (middle es el then del IF)
-    printAST(node->left, level + 1);
-    printAST(node->middle, level + 1);
-    printAST(node->right, level + 1);
+    printAST(node->left, level + 1, out);
+    printAST(node->middle, level + 1, out);
+    printAST(node->right, level + 1, out);
 }
 
 //Liberacion de memoria (recorrido post-orden)

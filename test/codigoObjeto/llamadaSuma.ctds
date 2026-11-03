@@ -1,8 +1,15 @@
-// Llamada con dos parametros. Resultado esperado: 8
+// Llamada con dos parametros. Resultado esperado: 7
 int suma(int a, int b) {
+    int c;
+    c = 2;
     return a + b;
 }
 
+
 int main() {
-    return suma(5, 3);
+    int d;
+    int e;
+    d = 3;
+    e = 4;
+    return suma(d, e);
 }
