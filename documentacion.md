@@ -457,11 +457,42 @@ Los offsets **positivos** son memoria del frame de quien llamó, y los **negativ
 
 ## 5. Optimizaciones
 
-El generador de código objeto admite optimizaciones que se activan según el valor de la variable global `optimization` (definida en `assemblyGenerator.c`). Por ahora su valor está fijo en el código; más adelante se tomará de un argumento de la línea de comandos. Si `optimization` no coincide con el nombre de una optimización, el generador produce el código sin optimizar.
+Una optimización cambia el código que genera el compilador para que el programa final sea más rápido, sin cambiar lo que hace. Las optimizaciones no están prendidas por defecto: se activan con la opción `-opt` al llamar al compilador.
 
-### 5.1. Shift
+```
+./ctds_parser -opt shifteos nombreArchivo.ctds
+```
 
-Se reemplazan las instrucciones de multiplicacion y division (`imull`, `idivl`) por desplazamientos de bits cuando uno de los operandos es una **constante entera que es potencia de 2** (1, 2, 4, 8, 16...). Se activa con `optimization = "shifteos"`.
+- `-opt shifteos` activa la optimización de shifteos (sección 5.2).
+- `-opt all` activa todas las optimizaciones que existan.
+- Sin `-opt`, el compilador no optimiza nada.
+
+### 5.1. Cómo se activan
+
+Al leer los argumentos, `parseArgs` guarda las optimizaciones elegidas en el campo `opts` de la estructura `Options`. Ese campo es un número entero en el que cada optimización usa un bit propio:
+
+```c
+#define OPT_SHIFT (1 << 0)
+#define OPT_ALL (~0)
+```
+
+`OPT_ALL` tiene todos los bits en 1, así que enciende todas las optimizaciones a la vez. Si se pasa `-opt` más de una vez, los bits se combinan con `|=`. Una optimización nueva solo necesita un bit nuevo (`1 << 1`, `1 << 2`, etc.) y un caso más en `parseArgs`.
+
+El `main` le pasa ese número al generador de código objeto:
+
+```c
+generateAssembly(&irList, assemblyFile, opts.opts);
+```
+
+Dentro de `assemblyGenerator.c`, `generateAssembly` lo guarda en una variable interna (`activeOptimizations`). Para saber si una optimización está prendida, el código pregunta por su bit:
+
+```c
+if (activeOptimizations & OPT_SHIFT) { ... }
+```
+
+### 5.2. Shift
+
+Se reemplazan las instrucciones de multiplicacion y division (`imull`, `idivl`) por desplazamientos de bits cuando uno de los operandos es una **constante entera que es potencia de 2** (1, 2, 4, 8, 16...). Se activa con `-opt shifteos`.
 
 | Operación | Sin optimizar | Con `shifteos` (`2^k`) |
 |---|---|---|
@@ -473,7 +504,7 @@ La optimización se aplica solo a constantes. Si el operando no es una constante
 
 #### Funciones auxiliares
 
-##### 5.1.1. `isPowerOfTwoConstant`
+##### 5.2.1. `isPowerOfTwoConstant`
 
 ```c
 static bool isPowerOfTwoConstant(Symbol* symbol, int* shift)
@@ -496,7 +527,7 @@ La función devuelve `false` si el símbolo es `NULL`, no es una constante (`kin
 
 El valor de `*shift` solo es significativo cuando la función devuelve `true`.
 
-#### 5.1.2. `writeDivisionSesgo`
+#### 5.2.2. `writeDivisionSesgo`
 
 ```c
 static void writeDivisionSesgo(FILE* out, int shift)
@@ -540,11 +571,11 @@ movl %eax, -8(%rbp)
 
 En la rama optimizada no se genera el chequeo de división por cero, porque una constante potencia de 2 es siempre mayor o igual a 1. Si el divisor no es una constante potencia de 2, se genera el camino habitual con `cmpl $0, %ecx` / `je .division_por_cero` / `cltd` / `idivl`.
 
-#### 5.1.4. Verificación
+#### 5.2.4. Verificación
 
 Se comprobó que los resultados con y sin optimización coinciden para dividendos positivos y negativos, con un programa que imprime los resultados con `printInt`. Se confirmó en el assembly generado con `grep -nE "sarl|andl|idivl" output.s`: con `shifteos` activo aparecen `sarl`/`andl` y desaparecen los `idivl` de las operaciones sobre potencias de 2.
 
-#### 5.1.5. Comparación del código generado
+#### 5.2.5. Comparación del código generado
 
 corrimos un programa [shifteosTest5.ctds] con 2 ciclos anidados de 10000 vueltas cada uno, con 4 multiplicaciones y 4 divisiones por potencias de 2 por vuelta. 
 

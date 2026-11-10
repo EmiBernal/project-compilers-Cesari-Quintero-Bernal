@@ -5,7 +5,9 @@ typedef enum { TARGET_SCAN, TARGET_PARSE, TARGET_SEM, TARGET_CODINTER, TARGET_AS
 
 //Optimizaciones: cada una es un bit de Options.opts. OPT_ALL prende todos
 #define OPT_ALL (~0)
-
+#define OPT_SHIFT (1 << 0)
+//#define OPT_DEADCODE (1 << 1)
+//#define OPT_ (1 << 1)
 typedef struct {
     char  *input;     // "prog.ctds"
     char  *output;    // lo que venga con -o, o NULL
