@@ -319,7 +319,7 @@ int main(int argc, char **argv){
                             fprintf(stderr, "No se pudo crear el archivo .ass\n");
                         }
                     } else {
-                        generateAssembly(&irList, assemblyFile);
+                        generateAssembly(&irList, assemblyFile, opts.opts);
                         fclose(assemblyFile);
                         if(opts.debug){
                             printf("Creado %s.\n", assemblyName);

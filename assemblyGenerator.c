@@ -1,14 +1,14 @@
 #include "assemblyGenerator.h"
 #include <stdlib.h>
 #include <string.h>
+#include "cli.h"
 #define STACK_ALIGNMENT_BYTES 16
 #define MAX_REGISTER_PARAMS 6
 #define STACK_ARG_SIZE_BYTES 8 
 #define MAX_CALL_ARGS 256
 #define FIRST_STACK_ARG_OFFSET 16
 
-const char* optimization;
-//optimization = "nada";
+static int activeOptimizations = 0;
 
 static const char* PARAM_REGISTERS[MAX_REGISTER_PARAMS] = {
     "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"
@@ -241,7 +241,7 @@ void translateInstruction(FILE* out, Instruction* instruction){
 
         case OP_MUL:{
             int shift;
-            if (optimization != NULL && strcmp(optimization, "shifteos") == 0) { //aca hay que cambiar cuando tengamos los parametros x consola
+            if (activeOptimizations && OPT_SHIFT) { //aca hay que cambiar cuando tengamos los parametros x consola
                 if (isPowerOfTwoConstant(instruction->arg2, &shift)) {
                     loadOperand(out, instruction->arg1, "%eax");
                     fprintf(out, "    shll $%d, %%eax\n", shift);
@@ -267,7 +267,7 @@ void translateInstruction(FILE* out, Instruction* instruction){
 
         case OP_DIV: {
             int shift;
-            if (optimization != NULL && strcmp(optimization, "shifteos") == 0
+            if ((activeOptimizations & OPT_SHIFT)
                 && isPowerOfTwoConstant(instruction->arg2, &shift)) {
                 loadOperand(out, instruction->arg1, "%eax");
                 if (shift > 0) {
@@ -387,7 +387,8 @@ void translateInstruction(FILE* out, Instruction* instruction){
     }
 }
 
-void generateAssembly(IntermediateList* list, FILE* out){
+void generateAssembly(IntermediateList* list, FILE* out, int opts){
+    activeOptimizations = opts;
     writeDataSection(out,list); //Para las variables globales
     InstructionNode* node = list->head;
     while(node != NULL){
