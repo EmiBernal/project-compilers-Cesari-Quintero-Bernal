@@ -75,6 +75,8 @@ int parseArgs(int argc, char **argv, Options *opts)
                 opts->opts |= OPT_ALL;
             }else if (strcmp(argv[i], "shifteos") == 0){
                 opts->opts |= OPT_SHIFT;
+            } else if (strcmp(argv[i], "constantes") == 0){
+                opts->opts |= OPT_CONST;
             } else {
                 fprintf(stderr, "Error: optimizacion desconocida '%s'\n", argv[i]);
                 return -1;

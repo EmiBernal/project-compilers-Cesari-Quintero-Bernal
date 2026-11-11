@@ -11,6 +11,7 @@
 #include "semantic.h"
 #include "intermediateCode.h"
 #include "assemblyGenerator.h"
+#include "optimizer.h"
 
 #ifndef RUNTIME_PATH
 #define RUNTIME_PATH "runtime.c"
@@ -276,6 +277,11 @@ int main(int argc, char **argv){
                 IntermediateList irList;
                 initIntermediateList(&irList);
                 generateMidRepresentation(root, &irList);
+                
+                //Optimizacion de propagacion de constantes
+                if(opts.opts & OPT_CONST){
+                    optimizeConstants(&irList);
+                }
 
                 if(opts.debug){
                     printIntermediateList(&irList, stdout);

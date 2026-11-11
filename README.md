@@ -16,7 +16,7 @@ Integrantes
 ```bash
 flex lexer.l
 bison -d parser.y
-gcc lex.yy.c parser.tab.c ast.c semantic.c symbolTable.c intermediateCode.c assemblyGenerator.c cli.c -o ctds_parser
+gcc -Wall lex.yy.c parser.tab.c ast.c semantic.c symbolTable.c intermediateCode.c assemblyGenerator.c cli.c optimizer.c -o ctds_parser
 ```
 
 `flex` y `bison` solo hace falta volver a correrlos si cambiás `lexer.l` o `parser.y`. Si solo tocaste archivos `.c`, alcanza con el `gcc`.
