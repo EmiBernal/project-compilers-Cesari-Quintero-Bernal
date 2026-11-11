@@ -10,6 +10,7 @@
 #include "semantic.h"
 #include "intermediateCode.h"
 #include "assemblyGenerator.h"
+#include "deadCode.h"
 
 
 
@@ -175,6 +176,7 @@ int main(int argc, char **argv){
         initIntermediateList(&irList);
         
         generateMidRepresentation(root, &irList);
+        eliminateDeadCode(&irList);
         printIntermediateList(&irList);
         FILE* assemblyFile = fopen("output.s", "w");
         if(assemblyFile == NULL){
