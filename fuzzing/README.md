@@ -7,7 +7,7 @@ Todos los comandos se corren desde la raiz del repo.
 ```bash
 flex lexer.l
 bison -d parser.y
-gcc lex.yy.c parser.tab.c ast.c semantic.c symbolTable.c intermediateCode.c assemblyGenerator.c -o ctds_parser
+gcc lex.yy.c parser.tab.c ast.c semantic.c symbolTable.c intermediateCode.c assemblyGenerator.c cli.c -o ctds_parser
 ```
 
 ## Harness
@@ -23,14 +23,16 @@ El mismo harness se usa para los dos lados, asi cualquier diferencia viene del c
 ## Compilar y ejecutar con ctds
 
 ```bash
-./ctds_parser fuzzing/fuzz/manual/bueno.ctds > /dev/null
-sed 's/\bmain\b/ctds_main/g' output.s > ctds.s
-gcc ctds.s fuzzing/fuzz/manual/harness.c -o prog_ctds
+./ctds_parser -target assembly fuzzing/fuzz/manual/bueno.ctds
+sed 's/\bmain\b/ctds_main/g' bueno.ass > ctds.s
+gcc ctds.s fuzzing/fuzz/manual/harness.c runtime.c -o prog_ctds
 ./prog_ctds
 ```
 
-- `ctds_parser` escribe `output.s` en el directorio desde donde se ejecuta, no al lado del `.ctds`.
-- `> /dev/null` oculta el AST y el codigo intermedio que imprime.
+- `-target assembly` hace que el compilador genere solo `bueno.ass` (en la carpeta desde donde se ejecuta) y no arme su propio ejecutable: el ejecutable lo armamos nosotros con el harness.
+- El compilador no imprime nada si sale bien: para saber si acepto el programa se mira el codigo de salida (`0` = aceptado).
+- La copia se guarda como `ctds.s` porque gcc reconoce el assembly por la extension `.s` (con `.ass` habria que pasarle `-x assembler`).
+- `runtime.c` tiene `printInt` y `getInt`: se linkea siempre, asi tambien se pueden probar programas que imprimen.
 - El `sed` renombra `main` en una copia (`ctds.s`): aparece en `.globl main` (simbolo visible
   para el linker) y en `main:` (etiqueta donde empieza la funcion). `\b` es limite de palabra,
   asi un nombre como `mainCount` no se toca.
@@ -62,7 +64,7 @@ diff <(tail -n +5 fuzzing/fuzz/manual/bueno.c) fuzzing/fuzz/manual/bueno.ctds
 ## Compilar y ejecutar con gcc (oraculo)
 
 ```bash
-gcc -Wall -std=gnu17 fuzzing/fuzz/manual/bueno.c fuzzing/fuzz/manual/harness.c -o prog_gcc
+gcc -Wall -std=gnu17 -fwrapv fuzzing/fuzz/manual/bueno.c fuzzing/fuzz/manual/harness.c runtime.c -o prog_gcc
 ./prog_gcc
 ```
 
@@ -97,14 +99,15 @@ Imprime una de estas lineas:
 
 | Salida | Significado |
 |--------|-------------|
-| `OK <valor>` | ctds y gcc devuelven lo mismo |
-| `RECHAZADO` | `ctds_parser` no acepto el programa (no imprimio `Programa aceptado correctamente.`) |
-| `ERROR_ASM` | el `output.s` de ctds no ensambla: bug del backend |
+| `OK <salida>` | ctds y gcc dan la misma salida: lo que imprimio `printInt` (si lo usa) y, al final, lo que devolvio `main` |
+| `RECHAZADO` | `ctds_parser` no acepto el programa (devolvio un codigo de salida distinto de 0) |
+| `ERROR_ASM` | el `.ass` de ctds no ensambla: bug del backend |
+| `ERROR_LINK` | el `.ass` ensambla pero no linkea con el harness y `runtime.c` (por ejemplo, llama a un `extern` que no existe) |
 | `ERROR_GCC` | gcc no compila el `.c`: el programa no es C valido (con el generador, bug del generador) |
 | `CRASH_CTDS` | el programa de ctds crashea y el de gcc no: bug de ctds |
 | `CRASH_GCC` | el programa de gcc crashea y el de ctds no |
 | `CRASH_AMBOS` | crashean los dos: casi seguro el programa generado tiene algo indefinido (por ejemplo dividir por cero) |
-| `DIFERENCIA ctds=X gcc=Y` | los resultados no coinciden: bug en el codigo generado |
+| `DIFERENCIA ctds=X gcc=Y` | las salidas no coinciden: bug en el codigo generado |
 
 Los `CRASH_*` muestran el codigo de salida del programa. Si es mayor a 128, lo mato una
 senal: el numero de senal es el codigo menos 128 (136 = 128 + 8 = SIGFPE, error aritmetico;
@@ -115,7 +118,7 @@ Devuelve 0 si dio `OK` y 1 en cualquier otro caso.
 ### Como funciona
 A partir del mismo .ctds que le pasa arma el codigo .c ya que escribe el preludio, copia el .ctds tal cual como esta y guarda todo como prog.c dentro de una carpeta temporal
 
-Luego compila ese prog.c con gcc y el harness. Cuando el script termina, la carpeta temporal se borra y el .c desaparece con ella.
+Luego compila ese prog.c con gcc, el harness y `runtime.c`. Del lado de ctds, ensambla y linkea por separado (`gcc -c` y despues el linkeo), asi se sabe si fallo el assembly (`ERROR_ASM`) o el linkeo (`ERROR_LINK`). Cuando el script termina, la carpeta temporal se borra y el .c desaparece con ella.
 
 ## Flags de gcc que fuimos agregando
 
@@ -123,6 +126,7 @@ Luego compila ese prog.c con gcc y el harness. Cuando el script termina, la carp
 |------|----------|
 | `-std=gnu17` | Fija el estandar de C para que el oraculo no cambie al actualizar gcc (gcc 15+ usa C23 por defecto, donde por ejemplo `int f()` significa "sin parametros") |
 | `-Wall` | Muestra warnings, que pueden indicar que el programa generado tiene algo raro |
+| `-fwrapv` | El overflow de `int` da la vuelta (como `addl`/`imull` en el assembly de ctds) en lugar de ser comportamiento indefinido |
 
 
 ## Gen.py
@@ -150,7 +154,7 @@ Primero se compila el compilador (por si se cambia algo previamente)
 ```
 flex lexer.l
 bison -d parser.y
-gcc lex.yy.c parser.tab.c ast.c semantic.c symbolTable.c intermediateCode.c assemblyGenerator.c -o ctds_parser
+gcc lex.yy.c parser.tab.c ast.c semantic.c symbolTable.c intermediateCode.c assemblyGenerator.c cli.c -o ctds_parser
 ```
 
 Para generar un programa (este es un ejemplo)
@@ -178,6 +182,12 @@ fuzzing/fuzz/compare.sh /tmp/prog.ctds
 Runner para poder juntar la cantidad de casos a probar, las semillas y la profundidad que debe tener el arbol.
 
 Cuando el arbol tiene expresiones que guarda valores chicos, podemos notar que los tests suelen funcionar y devolver ok en su mayoria
+
+```bash
+fuzzing/fuzz/fuzz.sh 1000 1 4      # 1000 casos, desde la semilla 1, profundidad 4
+```
+
+Corrida de 1000 casos (semillas 1 a 1000, profundidad 4): **1000 OK, 0 fallos**, en unos 4 minutos.
 
 ## Compartimientos indefinidos
 El testing diferencial supone que **gcc da la respuesta correcta**. Pero el estandar de C dice que algunas operaciones tienen *comportamiento indefinido*

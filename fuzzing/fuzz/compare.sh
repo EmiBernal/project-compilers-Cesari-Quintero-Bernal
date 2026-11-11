@@ -5,8 +5,9 @@
 #
 # Imprime una de estas lineas:
 #   OK <valor>                    los dos devuelven lo mismo
-#   RECHAZADO                     ctds_parser no acepto el programa
-#   ERROR_ASM                     el output.s de ctds no ensambla
+#   RECHAZADO                     ctds_parser no acepto el programa (devolvio un codigo distinto de 0)
+#   ERROR_ASM                     el .ass de ctds no ensambla
+#   ERROR_LINK                    el .ass ensambla pero no linkea con el harness y runtime.c
 #   ERROR_GCC                     gcc no compila el .c (problema del programa, no de ctds)
 #   CRASH_CTDS                    bug: el programa de ctds crashea y el de gcc no
 #   CRASH_GCC                     el programa de gcc crashea y el de ctds no
@@ -17,6 +18,8 @@ FUZZ_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$FUZZ_DIR/../.." && pwd)"
 COMPILER="$ROOT/ctds_parser"
 HARNESS="$FUZZ_DIR/manual/harness.c"
+# Funciones extern (printInt, getInt): se linkean de los dos lados para poder fuzzear programas que imprimen
+RUNTIME="$ROOT/runtime.c"
 
 # Validar que el script reciba exactamente un unico argumento
 if [ $# -ne 1 ]; then
@@ -25,25 +28,30 @@ if [ $# -ne 1 ]; then
 fi
 PROGRAM="$(realpath "$1")"
 
-# Cada caso corre en una carpeta nueva: si ctds_parser falla no hay output.s
+# Cada caso corre en una carpeta nueva: si ctds_parser falla no hay un .ass
 # viejo que se pueda usar por error, y varios casos no se pisan entre si
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 cd "$WORK"
 
-# 1. ctds: el codigo de salida siempre es 0, asi que se mira el mensaje de stdout.
-# Se guarda en un archivo en vez de usar un pipe: grep -q cierra el pipe apenas
-# encuentra el mensaje y ctds_parser podria morir (SIGPIPE) antes de escribir output.s
-"$COMPILER" "$PROGRAM" > ctds_stdout.txt 2> ctds_stderr.txt
-if ! grep -q "Programa aceptado correctamente." ctds_stdout.txt; then
+# 1. ctds: -target assembly para que solo genere el .ass (el ejecutable lo armamos
+# nosotros con el harness). El compilador devuelve 0 si acepto el programa.
+# El .ass se genera en la carpeta actual con el nombre del programa: prog.ctds -> prog.ass
+if ! "$COMPILER" -target assembly "$PROGRAM" > ctds_stdout.txt 2> ctds_stderr.txt; then
     echo "RECHAZADO"
     exit 1
 fi
+ASM="$(basename "$PROGRAM" .ctds).ass"
 
-# 2. Renombrar main para linkear con el harness
-sed 's/\bmain\b/ctds_main/g' output.s > ctds.s
-if ! gcc ctds.s "$HARNESS" -o prog_ctds 2> asm_stderr.txt; then
+# 2. Renombrar main para linkear con el harness. Se guarda como .s para que gcc lo
+# reconozca como assembly. Ensamblar y linkear van por separado para saber cual fallo
+sed 's/\bmain\b/ctds_main/g' "$ASM" > ctds.s
+if ! gcc -c ctds.s -o ctds.o 2> asm_stderr.txt; then
     echo "ERROR_ASM"
+    exit 1
+fi
+if ! gcc ctds.o "$HARNESS" "$RUNTIME" -o prog_ctds 2> link_stderr.txt; then
+    echo "ERROR_LINK"
     exit 1
 fi
 
@@ -53,7 +61,7 @@ fi
     cat "$PROGRAM"
 } > prog.c
 # -fwrapv: el overflow de int da la vuelta (como addl/imull en ctds) en vez de ser UB
-if ! gcc -Wall -std=gnu17 -fwrapv prog.c "$HARNESS" -o prog_gcc 2> gcc_stderr.txt; then
+if ! gcc -Wall -std=gnu17 -fwrapv prog.c "$HARNESS" "$RUNTIME" -o prog_gcc 2> gcc_stderr.txt; then
     echo "ERROR_GCC"
     exit 1
 fi
@@ -71,16 +79,18 @@ if [ $CTDS_STATUS -ne 0 ] && [ $GCC_STATUS -ne 0 ]; then
     echo "CRASH_AMBOS ctds=$CTDS_STATUS gcc=$GCC_STATUS"
     exit 1
 elif [ $CTDS_STATUS -ne 0 ]; then
-    echo "CRASH_CTDS ctds=$CTDS_STATUS gcc_salida=$GCC_OUT"
+    echo "CRASH_CTDS ctds=$CTDS_STATUS gcc_salida=$(echo $GCC_OUT)"
     exit 1
 elif [ $GCC_STATUS -ne 0 ]; then
-    echo "CRASH_GCC gcc=$GCC_STATUS ctds_salida=$CTDS_OUT"
+    echo "CRASH_GCC gcc=$GCC_STATUS ctds_salida=$(echo $CTDS_OUT)"
     exit 1
 fi
 
+# Se compara toda la salida: lo que imprimio printInt y, en la ultima linea, lo que
+# devolvio main (lo imprime el harness). $(echo $X) junta las lineas en una sola
 if [ "$CTDS_OUT" = "$GCC_OUT" ]; then
-    echo "OK $CTDS_OUT"
+    echo "OK $(echo $CTDS_OUT)"
 else
-    echo "DIFERENCIA ctds=$CTDS_OUT gcc=$GCC_OUT"
+    echo "DIFERENCIA ctds=$(echo $CTDS_OUT) gcc=$(echo $GCC_OUT)"
     exit 1
 fi
