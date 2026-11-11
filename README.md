@@ -34,6 +34,7 @@ El archivo tiene que terminar en `.ctds` y no puede empezar con `-`. Las opcione
 | `-target <etapa>` | Compila hasta la etapa dada y genera solo su archivo (ver tabla abajo) |
 | `-o <salida>` | Le cambia el nombre al ejecutable (por defecto `nombreArchivo.out`) |
 | `-opt all` | Activa todas las optimizaciones *(en desarrollo)* |
+| `-opt shifteos` | Activa la optimizacion de shifteos para mult o div por potencias de 2 |
 
 Si la compilación sale bien **no se imprime nada** (salvo con `-debug`) y se generan `nombreArchivo.ass` y el ejecutable `nombreArchivo.out` **en la carpeta desde donde se ejecuta el compilador** (como gcc), no en la carpeta del `.ctds`. Los errores se muestran siempre.
 

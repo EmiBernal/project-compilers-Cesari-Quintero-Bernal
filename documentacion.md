@@ -454,3 +454,141 @@ Los offsets **positivos** son memoria del frame de quien llamó, y los **negativ
 - **Límite:** `MAX_CALL_ARGS` (256) argumentos por llamada. Si se pasa, se informa el error por `stderr`.
 - **Solo enteros y booleanos:** los argumentos `float` usan otros registros (`%xmm0`–`%xmm7`) y todavía no están soportados.
 - **Tests:** `seisParametros.ctds`, `nueveParametros.ctds` y `muchosParametrosRecursion.ctds` en `test/codigoObjeto/`.
+
+## 5. Optimizaciones
+
+Una optimización cambia el código que genera el compilador para que el programa final sea más rápido, sin cambiar lo que hace. Las optimizaciones no están prendidas por defecto: se activan con la opción `-opt` al llamar al compilador.
+
+```
+./ctds_parser -opt shifteos nombreArchivo.ctds
+```
+
+- `-opt shifteos` activa la optimización de shifteos (sección 5.2).
+- `-opt all` activa todas las optimizaciones que existan.
+- Sin `-opt`, el compilador no optimiza nada.
+
+### 5.1. Cómo se activan
+
+Al leer los argumentos, `parseArgs` guarda las optimizaciones elegidas en el campo `opts` de la estructura `Options`. Ese campo es un número entero en el que cada optimización usa un bit propio:
+
+```c
+#define OPT_SHIFT (1 << 0)
+#define OPT_ALL (~0)
+```
+
+`OPT_ALL` tiene todos los bits en 1, así que enciende todas las optimizaciones a la vez. Si se pasa `-opt` más de una vez, los bits se combinan con `|=`. Una optimización nueva solo necesita un bit nuevo (`1 << 1`, `1 << 2`, etc.) y un caso más en `parseArgs`.
+
+El `main` le pasa ese número al generador de código objeto:
+
+```c
+generateAssembly(&irList, assemblyFile, opts.opts);
+```
+
+Dentro de `assemblyGenerator.c`, `generateAssembly` lo guarda en una variable interna (`activeOptimizations`). Para saber si una optimización está prendida, el código pregunta por su bit:
+
+```c
+if (activeOptimizations & OPT_SHIFT) { ... }
+```
+
+### 5.2. Shift
+
+Se reemplazan las instrucciones de multiplicacion y division (`imull`, `idivl`) por desplazamientos de bits cuando uno de los operandos es una **constante entera que es potencia de 2** (1, 2, 4, 8, 16...). Se activa con `-opt shifteos`.
+
+| Operación | Sin optimizar | Con `shifteos` (`2^k`) |
+|---|---|---|
+| `x * 2^k` | `imull` | `shll $k` |
+| `x / 2^k` | `cltd` + `idivl` | sesgo + `addl` + `sarl $k` |
+| `x % 2^k` | `cltd` + `idivl` | sesgo + `addl` + `andl $(2^k - 1)` + `subl` |
+
+La optimización se aplica solo a constantes. Si el operando no es una constante potencia de 2, se genera el código normal.
+
+#### Funciones auxiliares
+
+##### 5.2.1. `isPowerOfTwoConstant`
+
+```c
+static bool isPowerOfTwoConstant(Symbol* symbol, int* shift)
+```
+
+Decide si un operando del código intermedio es una constante entera potencia de 2 y, en ese caso, calcula cuántos desplazamientos equivalen a operar con ella.
+
+- **Parámetros:** `symbol` es el operando a analizar. `shift` es un parámetro de salida donde se guarda el exponente `k` tal que la constante es `2^k`.
+- **Retorna:** `true` si `symbol` es una constante entera potencia de 2; `false` en cualquier otro caso.
+
+La función devuelve `false` si el símbolo es `NULL`, no es una constante (`kind != CONSTANT`), no es de tipo `int`, o su valor es menor que 1 (el 0 y los negativos no son potencias de 2). Si pasa esos filtros, divide el valor por 2 mientras sea par, contando las divisiones en `*shift`. Es potencia de 2 si lo que queda al final es 1.
+
+| Constante | `*shift` | Resultado |
+|---|---|---|
+| 1 | 0 | `true` |
+| 8 | 3 | `true` |
+| 1024 | 10 | `true` |
+| 6 | 1 | `false` (queda 3) |
+| 0, -4 | sin cambios | `false` |
+
+El valor de `*shift` solo es significativo cuando la función devuelve `true`.
+
+#### 5.2.2. `writeDivisionSesgo`
+
+```c
+static void writeDivisionSesgo(FILE* out, int shift)
+```
+
+Escribe el assembly que calcula el **sesgo** necesario para dividir con signo por `2^shift`. Espera el dividendo en `%eax` y deja el sesgo en `%edx`.
+
+**Por qué hace falta.** `sarl` (desplazamiento aritmético a la derecha) redondea hacia menos infinito, pero la división de C redondea hacia cero. Con números positivos coinciden, pero con negativos no: `-17 / 4` es `-4` en C, mientras que `-17 >> 2` da `-5`. Para corregirlo, a los negativos se les suma `2^k - 1` antes de desplazar. Ese valor es el sesgo: vale 0 si el dividendo es positivo o cero, y `2^k - 1` si es negativo.
+
+**Cómo lo calcula:**
+
+```asm
+movl %eax, %edx        # copia el dividendo
+sarl $31, %edx         # edx = 0 si eax >= 0, o -1 (todos los bits en 1) si es negativo
+shrl $(32 - k), %edx   # edx = 0, o 2^k - 1 (shift lógico: rellena con ceros)
+```
+
+El `sarl $31` copia el bit de signo en los 32 bits. El `shrl` lo achica a `2^k - 1`; se usa la versión lógica porque debe rellenar con ceros. Con `sarl` seguiría valiendo `-1`.
+
+#### 5.1.3. Uso en `translateInstruction`
+
+**Multiplicación (`OP_MUL`).** Si algún operando es una constante potencia de 2, se carga el otro en `%eax` y se desplaza. Se prueba primero `arg2` y después `arg1`, porque la multiplicación es conmutativa. Si ninguno lo es, se genera `imull`. Por ejemplo, `x * 8`:
+
+```asm
+movl -4(%rbp), %eax
+shll $3, %eax
+movl %eax, -8(%rbp)
+```
+
+**División (`OP_DIV`).** Si el divisor es una constante potencia de 2, se carga el dividendo, se calcula el sesgo con `writeDivisionSesgo`, se suma y se desplaza. Si `shift` es 0 (dividir por 1) no se genera nada. Por ejemplo, `x / 4` con `x = -17`:
+
+```asm
+movl -4(%rbp), %eax    # eax = -17
+movl %eax, %edx
+sarl $31, %edx         # edx = -1
+shrl $30, %edx         # edx = 3  (2^2 - 1)
+addl %edx, %eax        # eax = -14
+sarl $2, %eax          # eax = -4  (igual que la división de C)
+movl %eax, -8(%rbp)
+```
+
+En la rama optimizada no se genera el chequeo de división por cero, porque una constante potencia de 2 es siempre mayor o igual a 1. Si el divisor no es una constante potencia de 2, se genera el camino habitual con `cmpl $0, %ecx` / `je .division_por_cero` / `cltd` / `idivl`.
+
+#### 5.2.4. Verificación
+
+Se comprobó que los resultados con y sin optimización coinciden para dividendos positivos y negativos, con un programa que imprime los resultados con `printInt`. Se confirmó en el assembly generado con `grep -nE "sarl|andl|idivl" output.s`: con `shifteos` activo aparecen `sarl`/`andl` y desaparecen los `idivl` de las operaciones sobre potencias de 2.
+
+#### 5.2.5. Comparación del código generado
+
+corrimos un programa [shifteosTest5.ctds] con 2 ciclos anidados de 10000 vueltas cada uno, con 4 multiplicaciones y 4 divisiones por potencias de 2 por vuelta. 
+
+El tiempo de ejecución pasó de 2,538 s a 0,643 s, unas 3 a 4 veces más rápido.
+
+| Corrida | Sin optimización | Con shifteos |
+|---|---|---|
+| 1 | 2,538 s | 0,648 s |
+| 2 | 2,539 s | 0,643 s |
+| 3 | 2,540 s | 0,642 s |
+| 4 | 2,531 s | 0,644 s |
+| 5 | 2,536 s | 0,642 s |
+| **Promedio** | **2,537 s** | **0,644 s** |
+
+
+
