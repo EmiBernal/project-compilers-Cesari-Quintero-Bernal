@@ -1,0 +1,13 @@
+extern void printInt(int x);
+
+int main() {
+    int x, a, b, c, d, e;
+    x = 5;
+    a = x * 4;
+    b = 8 * x;
+    c = x * 3;
+    d = x * 1;
+    e = a + b + c + d;
+    printInt(e);
+    return e;
+}

@@ -130,110 +130,110 @@ const char* opCodeToString(SymbolType opCode){
     }
 }
 
-static void printOperand(Symbol* symbol){
+static void printOperand(Symbol* symbol, FILE* out){
     if(symbol == NULL){
         return;
     }
     if(symbol->kind == CONSTANT){
         switch(symbol->type){
-            case TYPE_INT:   printf("%d", symbol->value.ival); break;
-            case TYPE_FLOAT: printf("%g", symbol->value.fval); break;
-            case TYPE_BOOL:  printf("%s", symbol->value.bval ? "true" : "false"); break;
+            case TYPE_INT:   fprintf(out, "%d", symbol->value.ival); break;
+            case TYPE_FLOAT: fprintf(out, "%g", symbol->value.fval); break;
+            case TYPE_BOOL:  fprintf(out, "%s", symbol->value.bval ? "true" : "false"); break;
             default: break;
         }
     } else {
-        printf("%s", symbol->name);
+        fprintf(out, "%s", symbol->name);
     }
 }
 
-static void printInstruction(Instruction* instruction){
+static void printInstruction(Instruction* instruction, FILE* out){
     switch(instruction->opCode){
         case OP_ASSIGN:
-            printOperand(instruction->result);
-            printf(" = ");
-            printOperand(instruction->arg1);
+            printOperand(instruction->result, out);
+            fprintf(out, " = ");
+            printOperand(instruction->arg1, out);
             break;
         case OP_UMINUS:
         case OP_NEG:
-            printOperand(instruction->result);
-            printf(" = %s", opCodeToString(instruction->opCode));
-            printOperand(instruction->arg1);
+            printOperand(instruction->result, out);
+            fprintf(out, " = %s", opCodeToString(instruction->opCode));
+            printOperand(instruction->arg1, out);
             break;
         case OP_JUMP:
-            printf("goto ");
-            printOperand(instruction->result);
+            fprintf(out, "goto ");
+            printOperand(instruction->result, out);
             break;
         case OP_JUMP_IF_FALSE:
-            printf("if_false ");
-            printOperand(instruction->arg1);
-            printf(" goto ");
-            printOperand(instruction->result);
+            fprintf(out, "if_false ");
+            printOperand(instruction->arg1, out);
+            fprintf(out, " goto ");
+            printOperand(instruction->result, out);
             break;
         case OP_JUMP_IF_TRUE:
-            printf("if_true ");
-            printOperand(instruction->arg1);
-            printf(" goto ");
-            printOperand(instruction->result);
+            fprintf(out, "if_true ");
+            printOperand(instruction->arg1, out);
+            fprintf(out, " goto ");
+            printOperand(instruction->result, out);
             break;
         case OP_LABEL:
-            printOperand(instruction->result);
-            printf(":");
+            printOperand(instruction->result, out);
+            fprintf(out, ":");
             break;
         case OP_ITOF:
-            printOperand(instruction->result);
-            printf(" = (float) ");
-            printOperand(instruction->arg1);
+            printOperand(instruction->result, out);
+            fprintf(out, " = (float) ");
+            printOperand(instruction->arg1, out);
             break;
         case OP_FTOI:
-            printOperand(instruction->result);
-            printf(" = (int) ");
-            printOperand(instruction->arg1);
+            printOperand(instruction->result, out);
+            fprintf(out, " = (int) ");
+            printOperand(instruction->arg1, out);
             break;
         case OP_BEGIN_FUNC:
-            printf("begin_func ");
-            printOperand(instruction->result);
+            fprintf(out, "begin_func ");
+            printOperand(instruction->result, out);
             break;
         case OP_END_FUNC:
-            printf("end_func ");
-            printOperand(instruction->result);
+            fprintf(out, "end_func ");
+            printOperand(instruction->result, out);
             break;
         case OP_PARAM:
-            printf("param ");
-            printOperand(instruction->arg1); //arg1 pq no es resultado
+            fprintf(out, "param ");
+            printOperand(instruction->arg1, out); //arg1 pq no es resultado
             break;
         case OP_CALL:
             //Caso metodo no void: t = call f
             if(instruction->result != NULL){
-                printOperand(instruction->result);
-                printf(" = ");
+                printOperand(instruction->result, out);
+                fprintf(out, " = ");
             }
             //En ambos casos: call f
-            printf("call ");
-            printOperand(instruction->arg1);
+            fprintf(out, "call ");
+            printOperand(instruction->arg1, out);
             break;
         case OP_RETURN:
-            printf("return");
+            fprintf(out, "return");
             //En caso de devolver algo
             if(instruction->arg1 != NULL){
-                printf(" ");
-                printOperand(instruction->arg1);
+                fprintf(out, " ");
+                printOperand(instruction->arg1, out);
             }
             break;
         default:
-            printOperand(instruction->result);
-            printf(" = ");
-            printOperand(instruction->arg1);
-            printf(" %s ", opCodeToString(instruction->opCode));
-            printOperand(instruction->arg2);
+            printOperand(instruction->result, out);
+            fprintf(out, " = ");
+            printOperand(instruction->arg1, out);
+            fprintf(out, " %s ", opCodeToString(instruction->opCode));
+            printOperand(instruction->arg2, out);
             break;
     }
-    printf("\n");
+    fprintf(out, "\n");
 }
 
-void printIntermediateList(IntermediateList* list){
+void printIntermediateList(IntermediateList* list, FILE* out){
     InstructionNode* current = list->head;
     while(current != NULL){
-        printInstruction(current->instruction);
+        printInstruction(current->instruction, out);
         current = current->next;
     }
 

@@ -1,10 +1,14 @@
 #include "assemblyGenerator.h"
 #include <stdlib.h>
+#include <string.h>
+#include "cli.h"
 #define STACK_ALIGNMENT_BYTES 16
 #define MAX_REGISTER_PARAMS 6
 #define STACK_ARG_SIZE_BYTES 8 
 #define MAX_CALL_ARGS 256
 #define FIRST_STACK_ARG_OFFSET 16
+
+static int activeOptimizations = 0;
 
 static const char* PARAM_REGISTERS[MAX_REGISTER_PARAMS] = {
     "%edi", "%esi", "%edx", "%ecx", "%r8d", "%r9d"
@@ -188,6 +192,29 @@ static void writeCall(FILE* out, Instruction* instruction, Symbol** args, int ar
     }
 }
 
+//Devuelve true si el simbolo es una constante entera que es potencia de 2 (1, 2, 4, 8, ...)
+static bool isPowerOfTwoConstant(Symbol* symbol, int* shift){
+    if(symbol == NULL || symbol->kind != CONSTANT || symbol->type != TYPE_INT){
+        return false;
+    }
+    int n = symbol->value.ival;
+    if(n < 1){
+        return false;
+    }
+    *shift = 0; //acá guardamos cuantos shift son necesarios
+    while(n % 2 == 0){
+        n = n / 2;
+        (*shift)++;
+    }
+    return n == 1;
+}
+
+static void writeDivisionSesgo(FILE* out, int shift){
+    fprintf(out, "    movl %%eax, %%edx\n");
+    fprintf(out, "    sarl $31, %%edx\n");              //edx = 0 si eax >= 0, todos 1 si es negativo
+    fprintf(out, "    shrl $%d, %%edx\n", 32 - shift);  //edx = 0 o 2^k - 1
+}
+
 void translateInstruction(FILE* out, Instruction* instruction){
     static Symbol* callArgs[MAX_CALL_ARGS]; //Argumentos de la llamada actual, en orden
     static int paramCount = 0;
@@ -212,22 +239,54 @@ void translateInstruction(FILE* out, Instruction* instruction){
             storeResult(out, "%eax", instruction->result);
             break;
 
-        case OP_MUL:
-            loadOperand(out, instruction->arg1, "%eax");
-            loadOperand(out, instruction->arg2, "%ecx");
-            fprintf(out, "    imull %%ecx, %%eax\n");
-            storeResult(out, "%eax", instruction->result);
-            break;
+        case OP_MUL:{
+            int shift;
+            if (activeOptimizations && OPT_SHIFT) { //aca hay que cambiar cuando tengamos los parametros x consola
+                if (isPowerOfTwoConstant(instruction->arg2, &shift)) {
+                    loadOperand(out, instruction->arg1, "%eax");
+                    fprintf(out, "    shll $%d, %%eax\n", shift);
+                } else {
+                    if (isPowerOfTwoConstant(instruction->arg1, &shift)) {
+                        loadOperand(out, instruction->arg2, "%eax");
+                        fprintf(out, "    shll $%d, %%eax\n", shift);
+                    }else{
+                        loadOperand(out, instruction->arg1, "%eax");
+                        loadOperand(out, instruction->arg2, "%ecx");
+                        fprintf(out, "    imull %%ecx, %%eax\n");
+                    }
+                }
+            } else {
+                loadOperand(out, instruction->arg1, "%eax");
+                loadOperand(out, instruction->arg2, "%ecx");
+                fprintf(out, "    imull %%ecx, %%eax\n");
+            }
 
-        case OP_DIV:
-            loadOperand(out, instruction->arg1, "%eax");
-            loadOperand(out, instruction->arg2, "%ecx");    
-            fprintf(out, "    cmpl $0, %%ecx\n");
-            fprintf(out, "    je .division_por_cero\n");        
-            fprintf(out, "    cltd\n");
-            fprintf(out, "    idivl %%ecx\n");
             storeResult(out, "%eax", instruction->result);
             break;
+        }
+
+        case OP_DIV: {
+            int shift;
+            if ((activeOptimizations & OPT_SHIFT)
+                && isPowerOfTwoConstant(instruction->arg2, &shift)) {
+                loadOperand(out, instruction->arg1, "%eax");
+                if (shift > 0) {
+                    writeDivisionSesgo(out, shift);
+                    fprintf(out, "    addl %%edx, %%eax\n");   //si es negativo, suma 2^k - 1
+                    fprintf(out, "    sarl $%d, %%eax\n", shift);
+                }
+                storeResult(out, "%eax", instruction->result);
+            } else {
+                loadOperand(out, instruction->arg1, "%eax");
+                loadOperand(out, instruction->arg2, "%ecx");
+                fprintf(out, "    cmpl $0, %%ecx\n");
+                fprintf(out, "    je .division_por_cero\n");
+                fprintf(out, "    cltd\n");
+                fprintf(out, "    idivl %%ecx\n");
+                storeResult(out, "%eax", instruction->result);
+            }
+            break;
+        }
 
         case OP_MOD:
             loadOperand(out, instruction->arg1, "%eax");
@@ -328,7 +387,8 @@ void translateInstruction(FILE* out, Instruction* instruction){
     }
 }
 
-void generateAssembly(IntermediateList* list, FILE* out){
+void generateAssembly(IntermediateList* list, FILE* out, int opts){
+    activeOptimizations = opts;
     writeDataSection(out,list); //Para las variables globales
     InstructionNode* node = list->head;
     while(node != NULL){
