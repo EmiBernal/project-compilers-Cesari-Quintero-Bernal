@@ -590,5 +590,42 @@ El tiempo de ejecución pasó de 2,538 s a 0,643 s, unas 3 a 4 veces más rápid
 | 5 | 2,536 s | 0,642 s |
 | **Promedio** | **2,537 s** | **0,644 s** |
 
+## 6. Testing usando la metodologia Fuzzing
 
+### 6.1 La tecnica Fuzzing
 
+La tecnica Fuzzing se basa en generar muchisimas entradas de manera automatica (miles x min), pasarselas al programa y mirar como se porta:
+
+Posibles comportamientos:
+- Que el programa crashee
+- Que el programa se cuelgue
+- Que el programa devuelva un resultado incorrecto
+
+### 6.2 Tipos de fuzzing
+
+Para el uso de fuzzing de compiladores, no nos conviene utilizar un generador aleatorio que trabaje en gray box, mas bien podemos reutilizar la gramatica que ya tenemos incorporada en el compilador para definir una "estructura" asi no se cuelga de forma seguida
+
+Por lo tanto, utilizaremos el tipo de fuzzing: Grammar Fuzzing
+
+Grammar Fuzzing genera programas siguiendo las reglas de las gramaticas. El generador produce programas eligiendo reglas al azar. Trabaja con terminales y no terminales
+
+De esta manera **todos los programas son sintacticamente validos**. Asi logran llegar a las etapas profundas donde podremos determinar los resultados:
+
+- Analisis semantico
+- Codigo intermedio
+- Codigo objeto
+- Optimizaciones
+
+Ademas, el generador llevara su propia tabla de simbolo permitinedo asi que sea **sintacticamente validos**
+
+### 6.3 Proceso 
+
+1) Generar un programa aleatorio
+
+2) Compilar dicho programa con nuestro compilador y con un compilador de referencia. En este caso, nuestro compilador de referencia, tambien llamado "Oraculo", sera GCC
+
+3) Ejecutar el programa en ambos compiladores y comparar resultados
+
+Si los resultados difieren, encontramos un bug
+
+![Process fuzzing in grammmar based input generation](fuzzing/fuzzing.png)

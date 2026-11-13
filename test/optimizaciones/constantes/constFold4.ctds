@@ -1,0 +1,11 @@
+extern void printInt(int x);
+int main() {
+    boolean b;
+    printInt(-5);
+    printInt(-(-7));
+    b = !true;
+    if (!false) { printInt(1); }
+    if (b) { printInt(2); }
+    printInt(-2147483647 - 1);
+    return 0;
+}

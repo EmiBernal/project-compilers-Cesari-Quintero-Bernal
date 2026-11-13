@@ -1,0 +1,9 @@
+extern void printInt(int x);
+
+int main() {
+    int x, y;
+    x = 0;
+    y = 10 / x;
+    printInt(y);
+    return 0;
+}

@@ -11,6 +11,7 @@
 #include "semantic.h"
 #include "intermediateCode.h"
 #include "assemblyGenerator.h"
+#include "optimizer.h"
 #include "deadCode.h"
 
 #ifndef RUNTIME_PATH
@@ -277,6 +278,11 @@ int main(int argc, char **argv){
                 IntermediateList irList;
                 initIntermediateList(&irList);
                 generateMidRepresentation(root, &irList);
+                
+                //Optimizacion de propagacion de constantes
+                if(opts.opts & OPT_CONST){
+                    optimizeConstants(&irList);
+                }
 
                 //Eliminacion de codigo muerto
                 if(opts.opts & OPT_DEADCODE){
