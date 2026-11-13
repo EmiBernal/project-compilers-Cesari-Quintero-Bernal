@@ -629,3 +629,47 @@ Ademas, el generador llevara su propia tabla de simbolo permitinedo asi que sea 
 Si los resultados difieren, encontramos un bug
 
 ![Process fuzzing in grammmar based input generation](fuzzing/fuzzing.png)
+
+## 7. Propagacion de constantes
+
+Si en un punto del programa sabes seguro que valor tiene una variable, se puede reemplazar esa variable por ese valor. Por si solo gana poco pero habilita otras optimizaciones:
+- Folding
+- Eliminar asignaciones que nadie usa
+- Borrar ramas muertas
+
+Recorre la lista llevando una tabla de variables cuyo valor conoce. En cada instruccion se hacen 3 cosas:
+
+1) **Sustituir**: si arg1 o arg2 estan en la tabla, reemplaza
+2) **Plegar**: Calcula las expresiones constantes
+3) **Actualizar la tabla**
+
+En la lista se compara con punteros, no por nombre ya que cada variable tiene un unico Symbol* en todo el programa
+
+### 7.1 Que hace esta optimizacion
+Si el compilador sabe que en cierto punto del programa una variable siempre tiene el mismo valor
+
+```
+    x = 5;      
+    y = x + 2;      //y = 5+2
+                    //y = 7
+    z = y * 2;      //z = 14
+```
+El problema real es el flujo de control ya que en codigo lineal es facil ya que se recorre de arriba hacia abajo y anotas el ultimo valor asignado
+
+```
+    x = 5;
+    if (c){
+        x = 3;
+    }
+    y = x + 1;
+```
+En este caso, c se conoce en tiempo de ejecucion, el compilador no puede saber cual es el camino que se toma.
+
+Por lo tanto, x no es constante ahi. Nosotros pensamos que el analisis tiene que ser conservador: si no se puede aprobar que es constante, entonces no lo es
+
+### 7.2 Analisis Local (por bloque basico)
+Se recorre el codigo intermedio con una tabla. Si encontramos una etiqueta, se vacia la tabla pq ya no sabes de donde venis.
+
+Con una llamada a una funcion tambien invalidas las variables globales, ya que la funcion puede modificarlas
+
+
