@@ -1,0 +1,8 @@
+extern void printInt(int x);
+int main() {
+    if (3 < 5) { printInt(1); }
+    if (5 > 3) { printInt(2); }
+    if (4 == 4) { printInt(3); }
+    if (4 == 5) { printInt(4); }
+    return 0;
+}

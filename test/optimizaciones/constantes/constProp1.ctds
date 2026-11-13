@@ -1,0 +1,14 @@
+extern void printInt(int x);
+
+int suma(int a, int b) {
+    int x, z;
+    x = 5;
+    x = a + b;
+    z = x * 2;
+    return z;
+}
+
+int main() {
+    printInt(suma(10, 20));
+    return 0;
+}
