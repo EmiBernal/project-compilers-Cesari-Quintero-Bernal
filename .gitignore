@@ -19,3 +19,11 @@ prog
 hola
 *.o
 
+# Configuracion del editor
+.vscode/
+
+
+# Archivos para las pruebas fuzzer
+prog_ctds
+prog_gcc
+__pycache__/

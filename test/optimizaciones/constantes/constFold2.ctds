@@ -1,0 +1,9 @@
+extern void printInt(int x);
+int main() {
+    printInt(17 / 5);
+    printInt(17 % 5);
+    printInt(-17 / 5);
+    printInt(-17 % 5);
+    printInt(17 / -5);
+    return 0;
+}

@@ -1,0 +1,9 @@
+extern void printInt(int x);
+
+int main() {
+    int x, y;
+    x = 3 * 4;
+    y = x + 1;
+    printInt(x - 2 * 5);
+    return 0;
+}

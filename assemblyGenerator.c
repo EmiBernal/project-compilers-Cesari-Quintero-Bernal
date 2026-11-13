@@ -241,7 +241,7 @@ void translateInstruction(FILE* out, Instruction* instruction){
 
         case OP_MUL:{
             int shift;
-            if (activeOptimizations && OPT_SHIFT) { //aca hay que cambiar cuando tengamos los parametros x consola
+            if (activeOptimizations & OPT_SHIFT) {
                 if (isPowerOfTwoConstant(instruction->arg2, &shift)) {
                     loadOperand(out, instruction->arg1, "%eax");
                     fprintf(out, "    shll $%d, %%eax\n", shift);

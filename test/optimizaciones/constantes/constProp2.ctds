@@ -1,0 +1,18 @@
+int g;
+
+extern void printInt(int x);
+
+void cambiar() {
+    g = 99;
+    return;
+}
+
+int main() {
+    int local;
+    g = 5;
+    local = 7;
+    cambiar();
+    printInt(g);
+    printInt(local);
+    return 0;
+}

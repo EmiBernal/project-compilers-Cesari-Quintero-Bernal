@@ -1,0 +1,18 @@
+int g;
+int h;
+
+extern void printInt(int x);
+
+void cambiar() {
+    g = g + 1;
+    h = h * 2;
+    return;
+}
+
+int main() {
+    g = 5;
+    h = 3;
+    cambiar();
+    printInt(g + h);
+    return 0;
+}
