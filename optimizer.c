@@ -42,7 +42,6 @@ static KnownConstant* setConstant(KnownConstant* table, Symbol* var, Symbol* val
     return newConstant;
 }
 
-//Saca a var de la tabla (si estaba). Devuelve la cabeza, que cambia si se borra el primero
 static KnownConstant* forgetConstant(KnownConstant* table, Symbol* var){
     KnownConstant* current = table;
     KnownConstant* prev = NULL;
@@ -60,6 +59,27 @@ static KnownConstant* forgetConstant(KnownConstant* table, Symbol* var){
         }
         prev = current;
         current = current->next;
+    }
+    return table;
+}
+
+//Saca de la tabla todas las variables globales (despues de un call, la funcion pudo cambiarlas)
+static KnownConstant* forgetGlobals(KnownConstant* table){
+    KnownConstant* current = table;
+    KnownConstant* prev = NULL;
+    while(current != NULL){
+        KnownConstant* next = current->next;
+        if(current->var->global){
+            if(prev == NULL){
+                table = next;
+            }else{
+                prev->next = next;
+            }
+            free(current);
+        }else{
+            prev = current;
+        }
+        current = next;
     }
     return table;
 }
@@ -207,8 +227,14 @@ void optimizeConstants(IntermediateList* list){
             table = forgetConstant(table, instruction->result);
         
         }
+
+        //Variables globales
+        if(instruction->opCode == OP_CALL){
+            table = forgetGlobals(table);
+        }
         
         node = node->next;
     }
+    
     table = clearConstants(table);
 }

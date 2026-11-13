@@ -1,6 +1,6 @@
-extern void printInt(int x);
-
 int g;
+
+extern void printInt(int x);
 
 void cambiar() {
     g = 99;

@@ -3,6 +3,9 @@
 #
 # Uso: fuzzing/fuzz/compare.sh programa.ctds
 #
+# Para probar optimizaciones, pasar las opciones en CTDS_OPTS:
+#   CTDS_OPTS="-opt constantes" fuzzing/fuzz/compare.sh programa.ctds
+#
 # Imprime una de estas lineas:
 #   OK <valor>                    los dos devuelven lo mismo
 #   RECHAZADO                     ctds_parser no acepto el programa (devolvio un codigo distinto de 0)
@@ -17,6 +20,8 @@
 FUZZ_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$FUZZ_DIR/../.." && pwd)"
 COMPILER="$ROOT/ctds_parser"
+# Opciones extra para ctds_parser (por ejemplo "-opt constantes"). Vacio si no se pasa
+CTDS_OPTS="${CTDS_OPTS:-}"
 HARNESS="$FUZZ_DIR/manual/harness.c"
 # Funciones extern (printInt, getInt): se linkean de los dos lados para poder fuzzear programas que imprimen
 RUNTIME="$ROOT/runtime.c"
@@ -37,7 +42,8 @@ cd "$WORK"
 # 1. ctds: -target assembly para que solo genere el .ass (el ejecutable lo armamos
 # nosotros con el harness). El compilador devuelve 0 si acepto el programa.
 # El .ass se genera en la carpeta actual con el nombre del programa: prog.ctds -> prog.ass
-if ! "$COMPILER" -target assembly "$PROGRAM" > ctds_stdout.txt 2> ctds_stderr.txt; then
+# $CTDS_OPTS va sin comillas a proposito: "-opt constantes" tiene que llegar como dos argumentos
+if ! "$COMPILER" $CTDS_OPTS -target assembly "$PROGRAM" > ctds_stdout.txt 2> ctds_stderr.txt; then
     echo "RECHAZADO"
     exit 1
 fi
