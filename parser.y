@@ -12,6 +12,7 @@
 #include "intermediateCode.h"
 #include "assemblyGenerator.h"
 #include "optimizer.h"
+#include "deadCode.h"
 
 #ifndef RUNTIME_PATH
 #define RUNTIME_PATH "runtime.c"
@@ -281,6 +282,11 @@ int main(int argc, char **argv){
                 //Optimizacion de propagacion de constantes
                 if(opts.opts & OPT_CONST){
                     optimizeConstants(&irList);
+                }
+
+                //Eliminacion de codigo muerto
+                if(opts.opts & OPT_DEADCODE){
+                    eliminateDeadCode(&irList);
                 }
 
                 if(opts.debug){

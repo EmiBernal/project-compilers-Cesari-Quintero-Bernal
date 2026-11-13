@@ -7,7 +7,7 @@ typedef enum { TARGET_SCAN, TARGET_PARSE, TARGET_SEM, TARGET_CODINTER, TARGET_AS
 #define OPT_ALL (~0)
 #define OPT_SHIFT (1 << 0)
 #define OPT_CONST (1 << 1)
-//#define OPT_DEADCODE (1 << 2) 
+#define OPT_DEADCODE (1 << 2)
 typedef struct {
     char  *input;     // "prog.ctds"
     char  *output;    // lo que venga con -o, o NULL
