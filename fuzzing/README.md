@@ -7,7 +7,7 @@ Todos los comandos se corren desde la raiz del repo.
 ```bash
 flex lexer.l
 bison -d parser.y
-gcc lex.yy.c parser.tab.c ast.c semantic.c symbolTable.c intermediateCode.c assemblyGenerator.c cli.c -o ctds_parser
+gcc -Wall lex.yy.c parser.tab.c ast.c semantic.c symbolTable.c intermediateCode.c assemblyGenerator.c cli.c optimizer.c deadCode.c -o ctds_parser
 ```
 
 ## Harness
@@ -154,7 +154,7 @@ Primero se compila el compilador (por si se cambia algo previamente)
 ```
 flex lexer.l
 bison -d parser.y
-gcc lex.yy.c parser.tab.c ast.c semantic.c symbolTable.c intermediateCode.c assemblyGenerator.c cli.c -o ctds_parser
+gcc -Wall lex.yy.c parser.tab.c ast.c semantic.c symbolTable.c intermediateCode.c assemblyGenerator.c cli.c optimizer.c deadCode.c -o ctds_parser
 ```
 
 Para generar un programa (este es un ejemplo)
@@ -188,6 +188,29 @@ fuzzing/fuzz/fuzz.sh 1000 1 4      # 1000 casos, desde la semilla 1, profundidad
 ```
 
 Corrida de 1000 casos (semillas 1 a 1000, profundidad 4): **1000 OK, 0 fallos**, en unos 4 minutos.
+
+Los programas que fallan se guardan en `fuzzing/fuzz/bugs/` con el tipo de fallo y la semilla en el nombre (por ejemplo `DIFERENCIA-seed42.ctds`). La carpeta esta en `.gitignore`: es el resultado de cada corrida, no se sube.
+
+## Probar las optimizaciones: `CTDS_OPTS`
+
+Por defecto `compare.sh` llama a `ctds_parser` sin opciones. Para probar una optimizacion se le pasan las opciones en la variable de entorno `CTDS_OPTS`. Solo las usa ctds: gcc (el oraculo) compila siempre igual, asi que si la optimizacion cambia el resultado aparece como `DIFERENCIA`.
+
+```bash
+CTDS_OPTS="-opt constantes" fuzzing/fuzz/compare.sh test/optimizaciones/constantes/constProp1.ctds
+CTDS_OPTS="-opt all" fuzzing/fuzz/fuzz.sh 300 1 6      # fuzz.sh se la pasa a compare.sh sin cambios
+```
+
+Para correr todos los tests contra gcc con todas las optimizaciones:
+
+```bash
+for f in test/optimizaciones/*/*.ctds test/codigoObjeto/*.ctds; do
+    printf '%-55s ' "$f"; CTDS_OPTS="-opt all" fuzzing/fuzz/compare.sh "$f"
+done
+```
+
+`constFold5` y `divisionPorCeroEjecucion` dan `CRASH_AMBOS`: dividen por cero a proposito.
+
+El generador solo arma expresiones con numeros, `+`, `-`, `*` y parentesis, asi que con optimizaciones prueba el plegado de esas operaciones. Las reglas de la propagacion (variables, labels, llamadas y globales) las cubren los tests de `test/optimizaciones/constantes/`.
 
 ## Compartimientos indefinidos
 El testing diferencial supone que **gcc da la respuesta correcta**. Pero el estandar de C dice que algunas operaciones tienen *comportamiento indefinido*

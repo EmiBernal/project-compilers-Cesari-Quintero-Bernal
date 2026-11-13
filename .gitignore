@@ -27,3 +27,5 @@ hola
 prog_ctds
 prog_gcc
 __pycache__/
+# Casos que fallan, los guarda fuzz.sh en cada corrida
+fuzzing/fuzz/bugs/

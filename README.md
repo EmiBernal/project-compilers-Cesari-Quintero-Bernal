@@ -33,10 +33,12 @@ El archivo tiene que terminar en `.ctds` y no puede empezar con `-`. Las opcione
 | `-debug` | Muestra el AST, el código intermedio y los mensajes de cada etapa |
 | `-target <etapa>` | Compila hasta la etapa dada y genera solo su archivo (ver tabla abajo) |
 | `-o <salida>` | Le cambia el nombre al ejecutable (por defecto `nombreArchivo.out`) |
-| `-opt all` | Activa todas las optimizaciones *(en desarrollo)* |
+| `-opt all` | Activa todas las optimizaciones (shifteos, constantes y deadcode) |
 | `-opt shifteos` | Activa la optimizacion de shifteos para mult o div por potencias de 2 |
 | `-opt constantes` | Activa el plegado de constantes: calcula en compilacion las operaciones con operandos constantes (ej. `3 * 4` → `12`) |
 | `-opt deadcode` | Elimina codigo muerto: instrucciones inalcanzables, saltos con condicion constante, `goto` al label siguiente y labels sin uso |
+
+`-opt` se puede repetir para combinar optimizaciones, por ejemplo `-opt constantes -opt deadcode`.
 
 Si la compilación sale bien **no se imprime nada** (salvo con `-debug`) y se generan `nombreArchivo.ass` y el ejecutable `nombreArchivo.out` **en la carpeta desde donde se ejecuta el compilador** (como gcc), no en la carpeta del `.ctds`. Los errores se muestran siempre.
 
