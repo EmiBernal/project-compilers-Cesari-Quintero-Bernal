@@ -1,0 +1,13 @@
+extern void printInt(int x);
+
+int doble(int x) {
+    return x * 2;
+    printInt(99);
+    x = x + 1;
+}
+
+int main() {
+    printInt(doble(21));
+    return 0;
+    printInt(100);
+}

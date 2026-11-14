@@ -1,0 +1,18 @@
+extern void printInt(int x);
+
+int main() {
+    if (true) {
+        printInt(1);
+    } else {
+        printInt(2);
+    }
+    if (false) {
+        printInt(3);
+    }
+    if (3 > 5) {
+        printInt(4);
+    } else {
+        printInt(5);
+    }
+    return 0;
+}
