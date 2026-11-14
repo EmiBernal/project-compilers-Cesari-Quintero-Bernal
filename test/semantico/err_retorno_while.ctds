@@ -1,0 +1,11 @@
+int primero(int x) {
+    while (x > 0) {
+        return x;
+    }
+}
+
+void main() {
+    int a;
+    a = primero(3);
+    return;
+}

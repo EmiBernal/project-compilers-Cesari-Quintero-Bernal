@@ -18,6 +18,7 @@ static bool isNumeric(DataType type);
 static bool isZeroLiteral(ASTNode* n);
 static bool areCompatible(DataType expected, DataType received);
 static DataType arithmeticResultType(DataType left, DataType right);
+static bool alwaysReturns(ASTNode* n);
 
 static void semanticError(const char* message, int line,...) {
     va_list args;
@@ -76,6 +77,10 @@ static void checkNode(ASTNode* n){
             checkNode(n->left); //inserta los parametros
             checkNode(n->right->left); //declaraciones locales 
             checkNode(n->right->right); //sentencias 
+            //Un metodo que devuelve algo tiene que terminar con return en todos los caminos
+            if(n->info->type != TYPE_VOID && !alwaysReturns(n->right)){
+                semanticError("el metodo '%s' no retorna un valor en todos los caminos", n->line, n->info->name);
+            }
             exitScope(&table);
             currentMethod = NULL;
             n->info->frameSize = maxOffset;
@@ -311,6 +316,26 @@ static DataType checkCall(ASTNode* n){
     }
     return f->type;
 } 
+
+//Devuelve true si toda ejecucion de n termina en un return
+static bool alwaysReturns(ASTNode* n){
+    if(n == NULL) return false;
+    switch(n->type){
+        case NODE_RETURN:
+            return true;
+        case NODE_SEQ:
+            //Una lista retorna si alguna de sus sentencias retorna (lo que sigue es inalcanzable)
+            return alwaysReturns(n->left) || alwaysReturns(n->right);
+        case NODE_BLOCK:
+            return alwaysReturns(n->right); //solo las sentencias
+        case NODE_IF:
+            //Sin else, si la condicion es falsa se sigue de largo: no alcanza
+            return n->right != NULL && alwaysReturns(n->middle) && alwaysReturns(n->right);
+        default:
+            //while: la condicion puede ser falsa desde el principio y no entrar nunca
+            return false;
+    }
+}
 
 static bool isNumeric(DataType type){
     return type == TYPE_FLOAT || type == TYPE_INT;
