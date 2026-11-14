@@ -673,3 +673,46 @@ Se recorre el codigo intermedio con una tabla. Si encontramos una etiqueta, se v
 Con una llamada a una funcion tambien invalidas las variables globales, ya que la funcion puede modificarlas
 
 
+## 8. Eliminación de código muerto
+
+Se borran del código intermedio las instrucciones que nunca se ejecutan o que no hacen nada. Se activa con `-opt deadcode` y está en `deadCode.c`. Corre sobre el TAC, **después** de la propagación de constantes (sección 7): esa optimización convierte condiciones como `3 > 5` en `false`, y recién ahí se puede ver que una rama es muerta. Con `-opt deadcode` solo, únicamente se detectan las condiciones que ya son literales (`if (true)`, `while (false)`).
+
+| Caso | Ejemplo en el TAC | Qué se hace | Función |
+|---|---|---|---|
+| Salto que se toma siempre | `if_false false goto L2` | Pasa a `goto L2` | `simplifyConstantJumps` |
+| Salto que no se toma nunca | `if_false true goto L0` | Se borra | `simplifyConstantJumps` |
+| Código inalcanzable | lo que sigue a un `return` o `goto` | Se borra hasta el próximo label o `end_func` | `removeUnreachableCode` |
+| Salto al label siguiente | `goto L1` seguido de `L1:` | Se borra el `goto` | `removeJumpsToNext` |
+| Label sin uso | `L0:` sin saltos hacia `L0` | Se borra el label | `removeUnusedLabels` |
+
+`eliminateDeadCode` llama a las cuatro funciones **hasta que ninguna cambie nada**, porque cada una habilita a otra. Por ejemplo, `if (true) { printInt(1); } else { printInt(2); }`:
+
+```
+if_false true goto L0        1ra vuelta: se borra (no salta nunca)
+param 1
+call printInt
+goto L1
+L0:                          1ra vuelta: nadie salta a L0, se borra
+param 2                      2da vuelta: queda después del goto sin label en el medio, se borra
+call printInt                2da vuelta: se borra
+L1:                          2da vuelta: se borra el goto L1 (salta al siguiente) y después L1
+```
+
+Queda solo `param 1` / `call printInt`.
+
+### 8.1. Limitaciones
+
+- No borra asignaciones que nadie usa: `t0 = false` queda aunque ya no se lea.
+- La propagación de constantes corre una sola vez y vacía su tabla en cada label. Si hay un `if` entre `debug = false` y `if (debug)`, ese segundo `if` no se elimina porque sus labels todavía existían al propagar.
+
+### 8.2. Verificación
+
+Los tests están en `test/optimizaciones/deadcode/`. Cada uno se compiló sin optimizar, con `-opt deadcode`, con `-opt constantes -opt deadcode` y con `-opt all`, y en todos los casos imprimió lo mismo. El TAC se puede comparar con `-target codinter`.
+
+| Test | Qué prueba | Imprime | Líneas `.ass` sin opt / `-opt all` |
+|---|---|---|---|
+| `deadCode1.ctds` | `if (true)`, `if (false)`, `if (3 > 5)` | `1 5` | 60 / 30 |
+| `deadCode2.ctds` | Código después de `return` | `42` | 56 / 43 |
+| `deadCode3.ctds` | `while (false)` y `while (true)` con `return` | `0` | 54 / 27 |
+| `deadCode4.ctds` | Propagación + código muerto (`debug = x > 10`) | `2` | 45 / 31 |
+| `deadCode5.ctds` | Condiciones no constantes: no tiene que romper nada | `15 1 -1 0` | 148 / 144 |
