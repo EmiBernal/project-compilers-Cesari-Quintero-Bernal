@@ -716,3 +716,12 @@ Los tests están en `test/optimizaciones/deadcode/`. Cada uno se compiló sin op
 | `deadCode3.ctds` | `while (false)` y `while (true)` con `return` | `0` | 54 / 27 |
 | `deadCode4.ctds` | Propagación + código muerto (`debug = x > 10`) | `2` | 45 / 31 |
 | `deadCode5.ctds` | Condiciones no constantes: no tiene que romper nada | `15 1 -1 0` | 148 / 144 |
+
+Por ultimo este es un comando que se puede correr para comparar la generacion de un mismo programa test/optimizaciones/testOpts.ctds sin la optimizaciones activas y con todas ellas activas.
+
+./ctds_parser -target assembly test/optimizaciones/testOpts.ctds && 
+cp testOpts.ass sin.ass && 
+./ctds_parser -target assembly -opt all test/optimizaciones/testOpts.ctds && 
+diff -y sin.ass testOpts.ass
+
+
